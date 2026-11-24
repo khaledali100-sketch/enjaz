@@ -10,6 +10,8 @@
 المشروع منشور على Cloudflare **Workers** (مشروع باسم `enjaz` مربوط بالمستودع، أمر النشر `npx wrangler deploy`)،
 وملف `wrangler.jsonc` في جذر المستودع يوجّه النشر إلى مجلد `web`. كل رفع إلى `main` يُنشر تلقائياً.
 
+الرابط الحالي: https://enjaz.enjazt.workers.dev (ويجب أن يكون مضافاً في Firebase ← Authentication ← Settings ← Authorized domains).
+
 بديل (Pages):
 1. أنشئ حساباً مجانياً في https://dash.cloudflare.com
 2. من القائمة: **Workers & Pages** ← **Create** ← تبويب **Pages** ← **Connect to Git**.

@@ -14,7 +14,7 @@ avoid tables/code blocks in replies to him.
   `python3 tools/build_web.py` from `claude-version/index.html` + `web-src/`
   (`firebase-shim.js` emulates `claude.use(...)` on Firebase v10.14.1 from gstatic CDN,
   shows the email/password login gate, sets `window.ENJAZ_AUTH`; `config.js` holds the
-  Firebase config + `STORAGE_ENABLED` flag). Hosted on Cloudflare Pages (output dir `web`).
+  Firebase config + `STORAGE_ENABLED` flag). Hosted on Cloudflare Workers static assets (`wrangler.jsonc` → `./web`), URL https://enjaz.enjazt.workers.dev (add any new domain to Firebase Auth authorized domains).
   Firebase project: enjaz-d0d3b (Spark for now: Storage disabled → evidence inline ≤650KB
   or links). Security rules in `firebase/` (owner pastes them in the console).
   Setup steps for the owner: `docs/firebase-setup.md`.
