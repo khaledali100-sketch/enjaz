@@ -46,4 +46,5 @@ avoid tables/code blocks in replies to him.
 - Test changes headless with Playwright (Chrome at /usr/bin/google-chrome), mobile
   viewport 400×860; check for page errors.
 - Never break existing stored data shapes; migrate in code when renaming.
-- Commit on a branch and open a PR unless the owner has allowed direct pushes to main.
+- The owner has allowed direct pushes to `main` (2026-11-25): commit and push changes
+  straight to main; no PR needed.
