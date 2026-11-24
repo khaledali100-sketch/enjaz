@@ -5,7 +5,12 @@
 2. احذف كل النص الموجود، والصق محتوى الملف `firebase/firestore.rules` كاملاً.
 3. اضغط **Publish**.
 
-## ٢. النشر على Cloudflare Pages
+## ٢. النشر على Cloudflare
+
+المشروع منشور على Cloudflare **Workers** (مشروع باسم `enjaz` مربوط بالمستودع، أمر النشر `npx wrangler deploy`)،
+وملف `wrangler.jsonc` في جذر المستودع يوجّه النشر إلى مجلد `web`. كل رفع إلى `main` يُنشر تلقائياً.
+
+بديل (Pages):
 1. أنشئ حساباً مجانياً في https://dash.cloudflare.com
 2. من القائمة: **Workers & Pages** ← **Create** ← تبويب **Pages** ← **Connect to Git**.
 3. اربط حساب GitHub واختر مستودع `enjaz`.
