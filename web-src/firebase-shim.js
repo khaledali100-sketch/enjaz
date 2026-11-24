@@ -137,6 +137,15 @@ const box = () => document.getElementById('gateBox');
 const v = id => (document.getElementById(id) || {}).value || '';
 const msg = (t, ok) => { const m = document.getElementById('gMsg'); if (m) { m.textContent = t; m.className = 'msg' + (ok ? ' ok' : ''); } };
 
+const MAX_FAILS = 5, LOCK_MIN = 15;
+const failKey = e => 'enjaz_fail_' + e;
+const readFail = e => { try { return JSON.parse(localStorage.getItem(failKey(e)) || '{}'); } catch (x) { return {}; } };
+const writeFail = (e, o) => { try { localStorage.setItem(failKey(e), JSON.stringify(o)); } catch (x) {} };
+const addFail = e => { const o = readFail(e); o.n = (o.n || 0) + 1; writeFail(e, o); return o.n; };
+const lockEmail = e => writeFail(e, { n: 0, until: Date.now() + LOCK_MIN * 60000 });
+const clearFails = e => { try { localStorage.removeItem(failKey(e)); } catch (x) {} };
+const lockLeft = e => { const o = readFail(e); return o.until && o.until > Date.now() ? Math.ceil((o.until - Date.now()) / 60000) : 0; };
+
 async function showLogin() {
   let boot = null;
   try { const b = await getDoc(doc(fs, 'meta', 'bootstrap')); boot = b.exists() ? b.data() : null; } catch (e) { boot = { unknown: true }; }
@@ -164,7 +173,29 @@ async function showLogin() {
     <label>البريد الإلكتروني</label><input id="gEmail" type="email" dir="ltr" autocomplete="username">
     <label>كلمة المرور</label><input id="gPass" type="password" dir="ltr" autocomplete="current-password">
     <button id="gLogin">دخول</button><button class="lnk" id="gForgot">نسيت كلمة المرور؟</button><div class="msg" id="gMsg"></div>`;
-  const go = async () => { msg('جارٍ الدخول…', true); try { await signInWithEmailAndPassword(auth, v('gEmail').trim(), v('gPass')); } catch (e) { msg(errMsg(e)); } };
+  const go = async () => {
+    const email = v('gEmail').trim().toLowerCase();
+    if (!email || !v('gPass')) { msg('اكتب البريد وكلمة المرور'); return; }
+    const lk = lockLeft(email);
+    if (lk) { msg('تم إيقاف الدخول بهذا البريد مؤقتاً بعد ' + MAX_FAILS + ' محاولات خاطئة. افتح الرابط المرسل إلى بريدك لتعيين كلمة مرور جديدة، ثم أعد المحاولة بعد ' + lk + ' دقيقة.'); return; }
+    msg('جارٍ الدخول…', true);
+    try { await signInWithEmailAndPassword(auth, email, v('gPass')); clearFails(email); }
+    catch (e) {
+      const c = e && e.code;
+      if (c === 'auth/invalid-credential' || c === 'auth/wrong-password' || c === 'auth/user-not-found' || c === 'auth/too-many-requests') {
+        const n = c === 'auth/too-many-requests' ? MAX_FAILS : addFail(email);
+        if (n >= MAX_FAILS) {
+          lockEmail(email);
+          try { await sendPasswordResetEmail(auth, email); } catch (e2) {}
+          msg('أُدخلت كلمة مرور خاطئة ' + MAX_FAILS + ' مرات، فأُوقف الدخول مؤقتاً لمدة ' + LOCK_MIN + ' دقيقة. أرسلنا رابط تعيين كلمة مرور جديدة إلى بريدك (افحص الرسائل غير المرغوبة أيضاً).');
+          return;
+        }
+        msg('البريد أو كلمة المرور غير صحيحة. المتبقي ' + (MAX_FAILS - n) + ' من ' + MAX_FAILS + ' محاولات قبل إيقاف الدخول وإرسال رابط الاستعادة.');
+        return;
+      }
+      msg(errMsg(e));
+    }
+  };
   document.getElementById('gLogin').onclick = go;
   document.getElementById('gPass').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
   document.getElementById('gForgot').onclick = async () => { if (!v('gEmail')) { msg('اكتب بريدك أولاً'); return; } try { await sendPasswordResetEmail(auth, v('gEmail').trim()); msg('أُرسل رابط تغيير كلمة المرور إلى بريدك', true); } catch (e) { msg(errMsg(e)); } };
