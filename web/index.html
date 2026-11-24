@@ -1187,7 +1187,10 @@ document.addEventListener('input',e=>{const t=e.target;if(t.dataset.cv){cvUpdate
 document.addEventListener('change',async e=>{
   const t=e.target;
   if(t.matches('[data-evfile]')){for(const f of t.files)await addEvFile(f,t.dataset.evfile);t.value='';drawEv();return}
-  if(t.matches('[data-import]')){const f=t.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(j.app!=='enjaz')throw 0;let n=0;NOLOG=true;for(const c of COLLS){for(const [id,o] of Object.entries(j.data[c]||{})){n++;put(c,id,o)}}NOLOG=false;logOp('import','settings','backup',{},null);toast('تمت الاستعادة')}catch(err){NOLOG=false;toast('ملف النسخة غير صالح')}t.value='';return}
+  if(t.matches('[data-import]')){const f=t.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(j.app==='enjaz-files'){NOLOG=true;let n=0,m=0;for(const [id,fo] of Object.entries(j.files||{})){await putFile(id,fo);n++}
+      const conv=x=>{let ch=false;const w=o=>{if(Array.isArray(o)){o.forEach(w);return}if(o&&typeof o==='object'){if(o.kind==='asset'&&j.files[o.ref]){o.kind='inline';ch=true}Object.values(o).forEach(w)}};w(x);return ch};
+      for(const c of COLLS){for(const [id,o] of Object.entries(D[c]||{})){const cp=clone(o);if(conv(cp)){put(c,id,cp);m++}}}NOLOG=false;logOp('import','settings','backup',{},null);toast('نُقلت '+n+' ملفات شواهد، وحُدّث '+m+' سجلاً');t.value='';return}
+if(j.app!=='enjaz')throw 0;let n=0;NOLOG=true;for(const c of COLLS){for(const [id,o] of Object.entries(j.data[c]||{})){n++;put(c,id,o)}}NOLOG=false;logOp('import','settings','backup',{},null);toast('تمت الاستعادة')}catch(err){NOLOG=false;toast('ملف النسخة غير صالح')}t.value='';return}
   if(t.dataset.cv){cvUpdate();return}
   const k=t.dataset.chg;if(!k)return;
   if(k==='dCell'){scheduleRender();return}
