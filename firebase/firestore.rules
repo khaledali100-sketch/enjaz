@@ -9,6 +9,7 @@ service cloud.firestore {
     function profile() { return get(userDoc()).data; }
     function active() { return signedIn() && exists(userDoc()) && profile().active != false; }
     function principal() { return active() && profile().role == 'principal'; }
+    function openColl(coll) { return !(coll in ['users', 'meta', 'settings', 'oplog']); }
     function bootstrapUid() { return get(/databases/$(database)/documents/meta/bootstrap).data.principalUid; }
 
     // إعداد أول مرة: يُنشأ مرة واحدة فقط ولا يُعدَّل بعدها.
@@ -43,10 +44,12 @@ service cloud.firestore {
     }
 
     // بقية بيانات البرنامج.
+    // مهم: Firestore يسمح بالعملية إذا سمحت بها أي قاعدة مطابقة، لذلك تُستثنى هنا
+    // المجموعات المحمية حتى لا تتجاوز هذه القاعدة العامة قيودها أعلاه.
     match /{coll}/{id} {
-      allow read: if active();
-      allow create, update: if active();
-      allow delete: if active() && profile().role != 'staff';
+      allow read: if openColl(coll) && active();
+      allow create, update: if openColl(coll) && active();
+      allow delete: if openColl(coll) && active() && profile().role != 'staff';
     }
   }
 }
