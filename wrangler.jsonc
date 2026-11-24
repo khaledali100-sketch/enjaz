@@ -2,6 +2,7 @@
   // نشر «إنجاز» على Cloudflare: موقع ثابت من مجلد web (يُبنى بـ tools/build_web.py).
   "name": "enjaz",
   "compatibility_date": "2025-09-01",
+  "workers_dev": true,
   "assets": {
     "directory": "./web",
     "not_found_handling": "single-page-application"
