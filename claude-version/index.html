@@ -314,7 +314,7 @@ function vOplog(){
 /* ============ الصلاحيات ============ */
 const S=()=>D.settings.main||{};
 let ME_STAFF=null;const APP_URL='https://claude.ai/artifact/Gfi6fnDmvi2W4jx42m9ehV';
-function myName(){return ME==='staff'?((D.staff[ME_STAFF]||{}).name||''):personName(ME)}
+function myName(){return ME==='staff'?((D.staff[ME_STAFF]||{}).name||''):(personName(ME)||(window.ENJAZ_AUTH&&window.ENJAZ_AUTH.profile&&window.ENJAZ_AUTH.profile.name)||'')}
 function can(m){if(!ME||ME==='staff')return false;if(ME==='principal')return true;if(m==='staff')return true;const p=(S().perms||DEFPERMS)[ME]||[];return p.includes(m)}
 function personName(r){return (S().people||{})[r]||''}
 function roleLabel(r){if(r==='staff')return 'مسؤول برنامج';return r==='admin'?(S().adminTitle||ROLES.admin):ROLES[r]}
@@ -453,7 +453,7 @@ function confirmBox(msg){return new Promise(res=>{openModal('تأكيد',`<p>${e
 const fileToData=f=>new Promise((r,j)=>{const x=new FileReader();x.onload=()=>r(x.result);x.onerror=j;x.readAsDataURL(f)});
 async function addEvFile(file,k){const L=()=>MODAL&&MODAL.evs&&(MODAL.evs[k]=MODAL.evs[k]||[]);
   if(ASSETS){try{toast('جارٍ رفع '+file.name);const r=await ASSETS.upload(file);L()&&L().push({name:file.name,kind:'asset',ref:r.id,type:file.type});return}catch(e){console.warn(e)}}
-  if(file.size>170*1024){toast('الملف كبير؛ أرفق رابطاً له بدلاً من ذلك');return}
+  if(file.size>(window.ENJAZ_INLINE_MAX||170*1024)){toast('الملف كبير؛ أرفق رابطاً له بدلاً من ذلك');return}
   try{const data=await fileToData(file);const id=uid();await putFile(id,{name:file.name,type:file.type,data});L()&&L().push({name:file.name,kind:'inline',ref:id,type:file.type})}catch(e){toast('تعذّر حفظ الملف')}
 }
 function evLinks(ev){return (ev||[]).map(e=>{if(e.kind==='asset')return `<div class="evi">${/^image\//.test(e.type||'')?'🖼':'📄'}<span>${esc(e.name)}</span><button class="btn sm" data-act="openEv" data-kind="asset" data-id="${esc(e.ref)}" data-t="${esc(e.type||'')}" data-n="${esc(e.name)}">فتح</button></div>`;if(e.kind==='link'){const ok=/^https?:\/\//i.test(e.ref);return `<div class="evi">🔗<span>${ok?`<a href="${esc(e.ref)}" target="_blank" rel="noopener">${esc(e.name)}</a>`:esc(e.name)}</span></div>`}return `<div class="evi">📄<span>${esc(e.name)}</span><button class="btn sm" data-act="openEv" data-kind="inline" data-id="${esc(e.ref)}" data-t="${esc(e.type||'')}" data-n="${esc(e.name)}">فتح</button></div>`}).join('')||'<p class="muted">لا توجد مرفقات</p>'}
@@ -461,7 +461,7 @@ function evLinks(ev){return (ev||[]).map(e=>{if(e.kind==='asset')return `<div cl
 let PDFJS=null;
 async function loadPdfjs(){if(PDFJS)return PDFJS;const m=await import(new URL('./pdfjs.min.js',location.href).href);m.GlobalWorkerOptions.workerSrc=new URL('./pdfjs.worker.min.js',location.href).href;PDFJS=m;return m}
 async function evBlob(kind,id){
-  if(kind==='asset'){const r=await fetch('/_blob/'+encodeURIComponent(id));if(!r.ok)throw new Error('http '+r.status);return await r.blob()}
+  if(kind==='asset'){const r=await fetch(window.ENJAZ_BLOB_URL?await window.ENJAZ_BLOB_URL(id):'/_blob/'+encodeURIComponent(id));if(!r.ok)throw new Error('http '+r.status);return await r.blob()}
   const f=await getFile(id);if(!f)throw new Error('missing');return await (await fetch(f.data)).blob()}
 async function openEvidence(kind,id,type,name){
   const isPdf=/pdf/i.test(type)||/\.pdf$/i.test(name),isImg=/^image\//.test(type)||/\.(png|jpe?g|gif|webp|heic)$/i.test(name);
@@ -591,7 +591,7 @@ const F={date:{k:'date',label:'التاريخ',t:'date',req:1},cls:{k:'cls',labe
 const supNames=()=>vals('sup_supervisors').map(s=>s.name).filter(Boolean);
 const C={day:{h:'اليوم',v:r=>dayName(r.date)},date:{h:'التاريخ',v:r=>fdt(r.date)},status:{h:'التنفيذ',v:r=>stChip(r.status)},level:{h:'مستوى التنفيذ',v:r=>lvl(r.level)},period:{h:'الحصة',v:r=>esc(r.period||'—')},cls:{h:'الفصل',v:r=>esc(r.cls||'—')}};
 const TABLES={
-  staff:{coll:'staff',mod:'staff',title:'دليل المنسوبين (المسؤولون عن البرامج)',add:'منسوب',schema:()=>[{k:'name',label:'الاسم',req:1},{k:'title',label:'العمل/الصفة'},{k:'phone',label:'رقم الجوال',ph:'05xxxxxxxx'},...(ME==='principal'?[{k:'pin',label:'رمز دخول المسؤول لتحديث برامجه',ph:'4 أرقام أو أكثر'}]:[])],cols:[{h:'الاسم',v:r=>`<b>${esc(r.name)}</b>`},{h:'الصفة',v:r=>esc(r.title||'—')},{h:'الجوال',v:r=>r.phone?`<span dir="ltr">${esc(r.phone)}</span>`:'—'},{h:'الدخول',v:r=>r.pin?'<span class="st ok">مفعّل</span>':'<span class="st na">—</span>'},{h:'برامجه',v:r=>{const it=allItems().filter(x=>String(x.owner||'').trim()===String(r.name).trim());const bad=it.filter(x=>{const e=endedState(x);return e&&!e.ok}).length;return `<button class="ib" data-act="ownerGo" data-n="${esc(r.name)}">📋 ${it.length}</button>${bad?` <span class="st no">${bad} ناقص</span>`:''}`}}],sort:(a,b)=>String(a.name).localeCompare(String(b.name),'ar'),nofilter:1},
+  staff:{coll:'staff',mod:'staff',title:'دليل المنسوبين (المسؤولون عن البرامج)',add:'منسوب',schema:()=>[{k:'name',label:'الاسم',req:1},{k:'title',label:'العمل/الصفة'},{k:'phone',label:'رقم الجوال',ph:'05xxxxxxxx'},...(ME==='principal'&&!window.ENJAZ_WEB?[{k:'pin',label:'رمز دخول المسؤول لتحديث برامجه',ph:'4 أرقام أو أكثر'}]:[])],cols:[{h:'الاسم',v:r=>`<b>${esc(r.name)}</b>`},{h:'الصفة',v:r=>esc(r.title||'—')},{h:'الجوال',v:r=>r.phone?`<span dir="ltr">${esc(r.phone)}</span>`:'—'},{h:'الدخول',v:r=>r.pin?'<span class="st ok">مفعّل</span>':'<span class="st na">—</span>'},{h:'برامجه',v:r=>{const it=allItems().filter(x=>String(x.owner||'').trim()===String(r.name).trim());const bad=it.filter(x=>{const e=endedState(x);return e&&!e.ok}).length;return `<button class="ib" data-act="ownerGo" data-n="${esc(r.name)}">📋 ${it.length}</button>${bad?` <span class="st no">${bad} ناقص</span>`:''}`}}],sort:(a,b)=>String(a.name).localeCompare(String(b.name),'ar'),nofilter:1},
   sup_supervisors:{coll:'sup_supervisors',mod:'sup',title:'المشرفون',add:'مشرف',schema:[{k:'name',label:'اسم المشرف',req:1},{k:'subjects',label:'المواد التي يشرف عليها'},{k:'stage',label:'المرحلة',t:'select',opts:STAGES},{k:'phone',label:'الجوال'},{k:'teachers',label:'أسماء المعلمين الذين يشرف عليهم (اسم في كل سطر)',t:'lines'}],
     cols:[{h:'المشرف',v:r=>`<b>${esc(r.name)}</b>`},{h:'المواد',v:r=>esc(r.subjects||'—')},{h:'المرحلة',v:r=>esc(r.stage||'—')},{h:'المعلمون',v:r=>(r.teachers||[]).length?`<span class="small">${(r.teachers||[]).map(esc).join('، ')}</span>`:'—'},{h:'عدد الزيارات',v:r=>{const v=vals('sup_visits').filter(x=>x.supervisor===r.name);return `${v.filter(x=>x.status==='نفذ').length} / ${v.length}`}}],sort:(a,b)=>String(a.name).localeCompare(String(b.name),'ar'),nofilter:1},
   sup_visits:{coll:'sup_visits',mod:'sup',title:'جدول الزيارات الصفية',add:'زيارة',schema:[{k:'supervisor',label:'المشرف',t:'select',opts:supNames,req:1},{k:'vtype',label:'نوع الزيارة',t:'select',opts:VTYPES},F.date,{k:'teacher',label:'المعلم',t:'teacher',req:1},F.cls,F.period,F.status,{k:'evidence',label:'التقرير',t:'evidence'}],
@@ -924,18 +924,25 @@ function drawDisCharts(d,ds,rows,res){
 }
 
 /* ============ الإعدادات ============ */
+const U_ROLES=[['principal','المدير'],['counselor','الموجه الطلابي'],['activity','رائد النشاط'],['admin','إداري'],['staff','مسؤول برنامج / معلم']];
+function usersCard(){const us=(window.ENJAZ_AUTH.listUsers()||[]).sort((a,b)=>String(a.name||a.email).localeCompare(String(b.name||b.email),'ar'));
+  return `<div class="card"><div class="row"><h3 style="flex:1">حسابات المستخدمين (${us.length})</h3><button class="btn sm" data-act="uAdd">+ مستخدم</button></div><p class="small muted">كل مستخدم يدخل ببريده وكلمة مرور. الدور يحدد ما يستطيع إدخاله، و«مسؤول برنامج / معلم» يحدّث تنفيذ برامجه وشواهده فقط.</p>
+  <div class="list">${us.map(u=>`<div class="item" style="cursor:default"><div class="row"><b style="flex:1">${esc(u.name||'—')}</b>${u.active===false?'<span class="st no">موقوف</span>':'<span class="st ok">فعّال</span>'}</div><div class="m"><span dir="ltr">${esc(u.email||'')}</span><span>${esc((U_ROLES.find(r=>r[0]===u.role)||['',u.role])[1])}</span>${u.staffId&&D.staff[u.staffId]?`<span>↔ ${esc(D.staff[u.staffId].name)}</span>`:''}</div>
+  <div class="row" style="margin-top:6px"><button class="btn sm line" data-act="uEdit" data-id="${u.id}">✎ تعديل</button><button class="btn sm line" data-act="uReset" data-id="${u.id}">🔑 رابط تغيير كلمة المرور</button>${u.id!==window.ENJAZ_AUTH.user.uid?`<button class="btn sm line" data-act="uToggle" data-id="${u.id}">${u.active===false?'تفعيل':'إيقاف'}</button>`:''}</div></div>`).join('')}</div></div>`}
+const U_SCHEMA=(isNew)=>[{k:'name',label:'الاسم',req:1},...(isNew?[{k:'email',label:'البريد الإلكتروني',req:1,ph:'name@example.com'},{k:'password',label:'كلمة مرور مبدئية (6 أحرف فأكثر)',req:1}]:[]),{k:'role',label:'الدور',t:'select',opts:U_ROLES,req:1},{k:'staffId',label:'ربطه بدليل المنسوبين (لمسؤولي البرامج)',t:'select',opts:()=>vals('staff').map(s=>[s.id,s.name])}];
 function vPrefs(){
   if(ME!=='principal')return head('الإعدادات')+'<div class="card empty">هذه الصفحة للمدير فقط</div>';
   const s=S(),pm=s.perms||DEFPERMS,pp=s.people||{},pins=s.pins||{};
   return head('الإعدادات والمستخدمون')+
   `<div class="card"><div class="row"><h3 style="flex:1">بيانات المدرسة والمستخدمين</h3><button class="btn sm" data-act="prefEdit">✎ تعديل</button></div>
-  <p><b>المدرسة:</b> ${esc(s.school||'—')}</p><div class="tw"><table><thead><tr><th>الدور</th><th>الاسم</th><th>رمز الدخول</th></tr></thead><tbody>${Object.keys(ROLES).map(r=>`<tr><td>${esc(roleLabel(r))}</td><td>${esc(pp[r]||'—')}</td><td>${pins[r]?'<span class="st ok">محدد</span>':'<span class="st no">غير محدد</span>'}</td></tr>`).join('')}</tbody></table></div></div>
+  <p><b>المدرسة:</b> ${esc(s.school||'—')}</p><div class="tw"><table><thead><tr><th>الدور</th><th>الاسم</th>${window.ENJAZ_WEB?'':'<th>رمز الدخول</th>'}</tr></thead><tbody>${Object.keys(ROLES).map(r=>`<tr><td>${esc(roleLabel(r))}</td><td>${esc(pp[r]||'—')}</td>${window.ENJAZ_WEB?'':`<td>${pins[r]?'<span class="st ok">محدد</span>':'<span class="st no">غير محدد</span>'}</td>`}</tr>`).join('')}</tbody></table></div></div>
   <div class="card"><h3>صلاحيات الإدخال (كلٌّ فيما يخصه)</h3><p class="small muted">المدير بصلاحيات كاملة. حدد الأقسام التي يحق لكل مستخدم الإدخال فيها، ويبقى بقية الأقسام للعرض فقط.</p>
   <div class="tw"><table class="perm"><thead><tr><th>القسم</th>${['counselor','activity','admin'].map(r=>`<th>${esc(roleLabel(r))}</th>`).join('')}</tr></thead><tbody>${Object.entries(MODS).map(([m,l])=>`<tr><td>${l}</td>${['counselor','activity','admin'].map(r=>`<td><input type="checkbox" data-chg="perm" data-r="${r}" data-m="${m}" ${(pm[r]||[]).includes(m)?'checked':''}></td>`).join('')}</tr>`).join('')}</tbody></table></div></div>
   <div class="card">${tableView('staff')}<p class="small muted">يُستخدم الدليل لاختيار المسؤولين وإرسال تذكيرات واتساب لهم.</p></div>
+  ${window.ENJAZ_AUTH?usersCard():''}
   <div class="card"><h3>النسخ الاحتياطي</h3><div class="row"><button class="btn sm line" data-act="backup">⬇ تنزيل نسخة احتياطية</button><label class="btn sm line filebtn">⬆ استعادة من نسخة<input type="file" class="fileinp" accept=".json,application/json" data-import></label></div><p class="small muted">حالة الحفظ: ${MODE==='db'?'البيانات محفوظة سحابياً ومشتركة بين المستخدمين':'البيانات محفوظة على هذا الجهاز فقط'}.</p></div>`;
 }
-const PREF_SCHEMA=()=>[{k:'school',label:'اسم المدرسة',req:1,full:1},{k:'appUrl',label:'رابط المنصة (يُرسل في رسائل التذكير)',full:1},{k:'adminTitle',label:'مسمى الإداري الذي يختاره المدير',ph:'مثال: وكيل الشؤون التعليمية'},...Object.keys(ROLES).flatMap(r=>[{k:'n_'+r,label:'اسم '+(r==='admin'?'الإداري':ROLES[r])},{k:'p_'+r,label:'رمز دخول '+(r==='admin'?'الإداري':ROLES[r]),ph:'4 أرقام أو أكثر'}])];
+const PREF_SCHEMA=()=>[{k:'school',label:'اسم المدرسة',req:1,full:1},{k:'appUrl',label:'رابط المنصة (يُرسل في رسائل التذكير)',full:1},{k:'adminTitle',label:'مسمى الإداري الذي يختاره المدير',ph:'مثال: وكيل الشؤون التعليمية'},...Object.keys(ROLES).flatMap(r=>[{k:'n_'+r,label:'اسم '+(r==='admin'?'الإداري':ROLES[r])},...(window.ENJAZ_WEB?[]:[{k:'p_'+r,label:'رمز دخول '+(r==='admin'?'الإداري':ROLES[r]),ph:'4 أرقام أو أكثر'}])])];
 
 /* ============ الدخول ============ */
 function loginModal(){
@@ -1062,7 +1069,7 @@ const ACT={
   go:el=>{location.hash='#'+el.dataset.r},
   mClose:()=>closeModal(),mSave:()=>MODAL&&MODAL.save(),mOk:()=>MODAL&&MODAL.ok(),
   login:()=>loginModal(),
-  logout:()=>{ME=null;ME_STAFF=null;try{sessionStorage.removeItem('enjaz_me')}catch(e){}render();toast('تم تسجيل الخروج')},
+  logout:()=>{if(window.ENJAZ_AUTH){window.ENJAZ_AUTH.signOut();return}ME=null;ME_STAFF=null;try{sessionStorage.removeItem('enjaz_me')}catch(e){}render();toast('تم تسجيل الخروج')},
   setup:()=>{const sc=$('#sSchool').value.trim(),n=$('#sName').value.trim(),p=$('#sPin').value.trim();if(!sc||p.length<4){toast('أدخل اسم المدرسة ورمزاً من 4 خانات فأكثر');return}ME='principal';
     const s=clone(S());s.school=sc;s.people=Object.assign({},s.people,{principal:n});s.pins=Object.assign({},s.pins,{principal:p});s.perms=s.perms||DEFPERMS;put('settings','main',s);ME='principal';try{sessionStorage.setItem('enjaz_me',ME)}catch(e){}closeModal();toast('مرحباً بك في إنجاز')},
   doLogin:()=>{const r=$('#lRole').value,p=$('#lPin').value.trim();if(r==='staff'){const st=D.staff[$('#lStaff').value];if(!st||!st.pin){toast('اختر اسمك من القائمة');return}if(p!==String(st.pin)){toast('رمز الدخول غير صحيح');return}ME='staff';ME_STAFF=st.id;try{sessionStorage.setItem('enjaz_me','staff:'+st.id)}catch(e){}closeModal();location.hash='#mine';render();toast('أهلاً '+st.name);return}
@@ -1107,6 +1114,10 @@ const ACT={
   achIAdd:el=>{const id=el.dataset.id,c=el.dataset.c,cl=ACH_CATS.find(x=>x[0]===c)[1];editForm('إضافة إنجاز – '+cl,ACH_I_SCHEMA,{date:todayISO()},o=>{mutate('tachieve',id,t=>{(t.items=t.items||[]).push(Object.assign(o,{id:uid(),cat:c}))});UI.achCat=id+c})},
   achIEdit:el=>{const id=el.dataset.id,iid=el.dataset.i,it=D.tachieve[id].items.find(x=>x.id===iid);editForm('تعديل الإنجاز',ACH_I_SCHEMA,it,o=>mutate('tachieve',id,t=>{t.items=t.items.map(x=>x.id===iid?Object.assign(x,o):x)}))},
   achIDel:async el=>{const id=el.dataset.id,iid=el.dataset.i;if(await confirmBox('حذف الإنجاز؟'))mutate('tachieve',id,t=>{t.items=t.items.filter(x=>x.id!==iid)})},
+  uAdd:()=>editForm('إضافة مستخدم',U_SCHEMA(true),{role:'staff'},async o=>{if(String(o.password).length<6){toast('كلمة المرور قصيرة');return}try{await window.ENJAZ_AUTH.createUser(o);toast('أُنشئ حساب '+o.name);render()}catch(e){toast(window.ENJAZ_AUTH.errMsg(e))}}),
+  uEdit:el=>{const u=window.ENJAZ_AUTH.listUsers().find(x=>x.id===el.dataset.id);editForm('تعديل المستخدم',U_SCHEMA(false),u,async o=>{try{await window.ENJAZ_AUTH.updateUser(u.id,{name:o.name,role:o.role,staffId:o.staffId||''});toast('تم الحفظ');render()}catch(e){toast(window.ENJAZ_AUTH.errMsg(e))}})},
+  uToggle:async el=>{const u=window.ENJAZ_AUTH.listUsers().find(x=>x.id===el.dataset.id);try{await window.ENJAZ_AUTH.updateUser(u.id,{active:u.active===false});render()}catch(e){toast(window.ENJAZ_AUTH.errMsg(e))}},
+  uReset:async el=>{const u=window.ENJAZ_AUTH.listUsers().find(x=>x.id===el.dataset.id);try{await window.ENJAZ_AUTH.resetPassword(u.email);toast('أُرسل رابط تغيير كلمة المرور إلى '+u.email)}catch(e){toast(window.ENJAZ_AUTH.errMsg(e))}},
   logReload:()=>{UI.logRows=null;loadLog()},
   logMore:()=>loadLog(true),
   tMove:el=>moveNode(TK(el),el.dataset.d,path(el)),
@@ -1160,7 +1171,7 @@ const ACT={
   clsDel:async el=>{if(await confirmBox('حذف الفصل؟'))del('dis_classes',el.dataset.id)},
   clsBulk:()=>editForm('إضافة عدة فصول لصف واحد',[{k:'stage',label:'المرحلة',t:'select',opts:STAGES,req:1},{k:'grade',label:'الصف',req:1,ph:'مثال: الثاني'},{k:'n',label:'عدد الفصول',t:'number',req:1},{k:'count',label:'العدد الأساسي لكل فصل',t:'number',req:1}],{},o=>{for(let i=1;i<=Math.min(+o.n||0,20);i++)put('dis_classes',uid(),{stage:o.stage,grade:o.grade,section:String(i),count:o.count,order:i})}),
   prefEdit:()=>{const s=S(),o={school:s.school,adminTitle:s.adminTitle,appUrl:s.appUrl||APP_URL};Object.keys(ROLES).forEach(r=>{o['n_'+r]=(s.people||{})[r]||'';o['p_'+r]=(s.pins||{})[r]||''});
-    editForm('بيانات المدرسة والمستخدمين',PREF_SCHEMA(),o,v=>{if(!v.p_principal||String(v.p_principal).length<4){toast('رمز المدير يجب أن يكون 4 خانات فأكثر');return}const n=clone(S());n.school=v.school;n.adminTitle=v.adminTitle;n.appUrl=v.appUrl;n.people={};n.pins={};Object.keys(ROLES).forEach(r=>{n.people[r]=v['n_'+r];n.pins[r]=v['p_'+r]});put('settings','main',n)})},
+    editForm('بيانات المدرسة والمستخدمين',PREF_SCHEMA(),o,v=>{if(!window.ENJAZ_WEB&&(!v.p_principal||String(v.p_principal).length<4)){toast('رمز المدير يجب أن يكون 4 خانات فأكثر');return}const n=clone(S());n.school=v.school;n.adminTitle=v.adminTitle;n.appUrl=v.appUrl;n.people={};n.pins=window.ENJAZ_WEB?(S().pins||{}):{};Object.keys(ROLES).forEach(r=>{n.people[r]=v['n_'+r];if(!window.ENJAZ_WEB)n.pins[r]=v['p_'+r]});put('settings','main',n)})},
   cvToday:()=>render(),
   backup:()=>{const o={};COLLS.forEach(c=>o[c]=D[c]);saveFile('enjaz-backup-'+todayISO()+'.json',JSON.stringify({app:'enjaz',v:1,at:new Date().toISOString(),data:o},null,1),'application/json')}
 };
@@ -1199,7 +1210,8 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&MODAL)closeModal()}
 
 /* ============ التشغيل ============ */
 async function boot(){
-  try{ME=sessionStorage.getItem('enjaz_me')||null;if(ME&&ME.startsWith('staff:')){ME_STAFF=ME.slice(6);ME='staff'}}catch(e){}
+  if(window.ENJAZ_WEB){await window.ENJAZ_READY;const pr=(window.ENJAZ_AUTH||{}).profile||{};ME=pr.role||null;ME_STAFF=pr.staffId||null}
+  else try{ME=sessionStorage.getItem('enjaz_me')||null;if(ME&&ME.startsWith('staff:')){ME_STAFF=ME.slice(6);ME='staff'}}catch(e){}
   setDot('');render();
   let cl=null;for(let i=0;i<30&&!cl;i++){if(window.claude&&typeof window.claude.use==='function')cl=window.claude;else await new Promise(r=>setTimeout(r,100))}
   if(cl){try{DB=await Promise.race([cl.use('db'),new Promise(r=>setTimeout(()=>r(null),10000))])}catch(e){DB=null}}

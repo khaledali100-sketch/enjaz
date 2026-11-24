@@ -10,8 +10,21 @@ avoid tables/code blocks in replies to him.
   (https://claude.ai/artifact/Gfi6fnDmvi2W4jx42m9ehV). Single `index.html` (vanilla JS,
   no build step) + vendored pdf.js (`pdfjs.min.js`, `pdfjs.worker.min.js`, legacy build,
   served as ES modules). Keep this folder as the reference implementation.
-- Planned: `web/` — standalone version on **Firebase (Blaze: Firestore + Auth + Storage)**,
-  hosted on **Cloudflare Pages** with auto-deploy from this repo.
+- `web/` — standalone version (GENERATED, do not edit by hand): built by
+  `python3 tools/build_web.py` from `claude-version/index.html` + `web-src/`
+  (`firebase-shim.js` emulates `claude.use(...)` on Firebase v10.14.1 from gstatic CDN,
+  shows the email/password login gate, sets `window.ENJAZ_AUTH`; `config.js` holds the
+  Firebase config + `STORAGE_ENABLED` flag). Hosted on Cloudflare Pages (output dir `web`).
+  Firebase project: enjaz-d0d3b (Spark for now: Storage disabled → evidence inline ≤650KB
+  or links). Security rules in `firebase/` (owner pastes them in the console).
+  Setup steps for the owner: `docs/firebase-setup.md`.
+- Workflow: edit `claude-version/index.html` → run build → test both (Claude version
+  directly; web version via a local server + mocked Firebase modules routed in
+  Playwright) → commit both → push main. Optionally republish the Claude artifact
+  (slug 7ee0aba8-6da6-4334-b19c-1a3a10380d40) from claude-version/.
+- Shared code hooks for web (inert inside Claude): `window.ENJAZ_WEB`, `ENJAZ_READY`,
+  `ENJAZ_AUTH` (roles from `users/{uid}`; prefs shows `usersCard()`), `ENJAZ_BLOB_URL`,
+  `ENJAZ_INLINE_MAX`.
 
 ## Architecture of index.html (both versions)
 - Global `D[collection][docId]` in-memory store. All writes go through `put(c,id,obj)`,

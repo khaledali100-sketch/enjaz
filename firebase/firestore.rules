@@ -1,0 +1,52 @@
+rules_version = '2';
+// قواعد أمان قاعدة بيانات «إنجاز».
+// تُنسخ كاملة إلى: Firebase ← Firestore ← Rules ← Publish
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function userDoc() { return /databases/$(database)/documents/users/$(request.auth.uid); }
+    function profile() { return get(userDoc()).data; }
+    function active() { return signedIn() && exists(userDoc()) && profile().active != false; }
+    function principal() { return active() && profile().role == 'principal'; }
+    function bootstrapUid() { return get(/databases/$(database)/documents/meta/bootstrap).data.principalUid; }
+
+    // إعداد أول مرة: يُنشأ مرة واحدة فقط ولا يُعدَّل بعدها.
+    match /meta/bootstrap {
+      allow read: if true;
+      allow create: if signedIn() && request.resource.data.principalUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // حسابات المستخدمين وأدوارهم: يديرها المدير فقط.
+    match /users/{uid} {
+      allow read: if active() || (signedIn() && request.auth.uid == uid);
+      allow create: if principal()
+        || (signedIn() && request.auth.uid == uid
+            && exists(/databases/$(database)/documents/meta/bootstrap)
+            && bootstrapUid() == uid
+            && request.resource.data.role == 'principal');
+      allow update, delete: if principal();
+    }
+
+    // سجل العمليات: يُضاف إليه فقط، ولا يُعدَّل ولا يُحذف، ويقرؤه المدير.
+    match /oplog/{id} {
+      allow read: if principal();
+      allow create: if active();
+      allow update, delete: if false;
+    }
+
+    // الإعدادات والصلاحيات: المدير فقط يعدّلها.
+    match /settings/{id} {
+      allow read: if active();
+      allow write: if principal();
+    }
+
+    // بقية بيانات البرنامج.
+    match /{coll}/{id} {
+      allow read: if active();
+      allow create, update: if active();
+      allow delete: if active() && profile().role != 'staff';
+    }
+  }
+}
