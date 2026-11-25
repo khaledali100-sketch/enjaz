@@ -3,7 +3,8 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
-  signOut, sendPasswordResetEmail, setPersistence, browserLocalPersistence
+  signOut, sendPasswordResetEmail, setPersistence, browserLocalPersistence,
+  updatePassword, reauthenticateWithCredential, EmailAuthProvider
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache,
@@ -17,6 +18,27 @@ let fs;
 try { fs = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) }); }
 catch (e) { fs = initializeFirestore(app, { localCache: memoryLocalCache() }); }
 window.ENJAZ_INLINE_MAX = INLINE_MAX_BYTES;
+
+/* ---------- الدخول برقم الجوال ----------
+   حسابات المنسوبين تُنشأ ببريد داخلي مشتق من رقم الجوال (لا يستقبل رسائل).
+   logins/{05xxxxxxxx} = { email } يحدد البريد الحالي للرقم (يتغير عند إصدار كلمة مرور جديدة). */
+const LOGIN_DOMAIN = FIREBASE_CONFIG.authDomain;
+const phoneEmail = (ph, k) => 'p' + ph + (k ? '.' + k : '') + '@' + LOGIN_DOMAIN;
+const isPhoneEmail = e => /^p\d{10}(\.\d+)?@/.test(e || '') && String(e).endsWith('@' + LOGIN_DOMAIN);
+function asPhone(t) {
+  let d = String(t || '').replace(/[^\d٠-٩]/g, '').replace(/[٠-٩]/g, c => '٠١٢٣٤٥٦٧٨٩'.indexOf(c));
+  if (!d || /@/.test(t)) return '';
+  if (d.startsWith('00')) d = d.slice(2);
+  if (d.startsWith('966')) d = '0' + d.slice(3);
+  if (d.length === 9 && d.startsWith('5')) d = '0' + d;
+  return /^05\d{8}$/.test(d) ? d : '';
+}
+async function resolveLogin(t) {
+  const ph = asPhone(t);
+  if (!ph) return { email: String(t || '').trim().toLowerCase(), phone: '' };
+  try { const s = await getDoc(doc(fs, 'logins', ph)); if (s.exists() && s.data().email) return { email: s.data().email, phone: ph }; } catch (e) {}
+  return { email: phoneEmail(ph), phone: ph };
+}
 
 /* ---------- محوّل قاعدة البيانات (نفس واجهة db في Claude) ---------- */
 const errCode = e => ({ code: e && e.code === 'permission-denied' ? 'invalid_argument' : 'unavailable', message: (e && e.message) || '' });
@@ -86,7 +108,11 @@ window.claude = { use: async n => ({ db: DB, user: USER, downloads: DL, assets: 
 
 /* ---------- واجهة الحسابات للمدير ---------- */
 const AR_ERR = {
-  'auth/invalid-credential': 'البريد أو كلمة المرور غير صحيحة',
+  'auth/invalid-credential': 'بيانات الدخول أو كلمة المرور غير صحيحة',
+  'auth/requires-recent-login': 'سجّل الخروج ثم ادخل من جديد وأعد المحاولة',
+  'enjaz/bad-phone': 'رقم الجوال غير صحيح (05xxxxxxxx)',
+  'enjaz/phone-used': 'رقم الجوال مستخدم لحساب آخر',
+  'enjaz/not-phone': 'هذا الحساب ليس برقم جوال',
   'auth/wrong-password': 'كلمة المرور غير صحيحة',
   'auth/user-not-found': 'لا يوجد حساب بهذا البريد',
   'auth/invalid-email': 'البريد الإلكتروني غير صحيح',
@@ -103,13 +129,37 @@ const AUTH = {
   user: null, profile: null, errMsg,
   signOut: () => signOut(auth).then(() => location.reload()),
   listUsers: () => Object.entries(USERS).map(([id, u]) => Object.assign({ id }, u)),
-  createUser: async ({ email, password, name, role, staffId }) => {
+  createUser: async ({ email, phone, password, name, role, staffId }) => {
     secondary = secondary || initializeApp(FIREBASE_CONFIG, 'secondary');
     const sa = getAuth(secondary);
-    const cred = await createUserWithEmailAndPassword(sa, String(email).trim(), password);
+    const ph = phone ? asPhone(phone) : '';
+    if (phone && !ph) throw { code: 'enjaz/bad-phone' };
+    const em = ph ? phoneEmail(ph) : String(email).trim().toLowerCase();
+    if (ph) { try { const s = await getDoc(doc(fs, 'logins', ph)); if (s.exists()) throw { code: 'enjaz/phone-used' }; } catch (e) { if (e && e.code === 'enjaz/phone-used') throw e; } }
+    const cred = await createUserWithEmailAndPassword(sa, em, password);
     try {
-      await setDoc(doc(fs, 'users', cred.user.uid), { email: String(email).trim(), name, role, staffId: staffId || '', active: true, createdAt: new Date().toISOString() });
+      await setDoc(doc(fs, 'users', cred.user.uid), { email: em, name, role, staffId: staffId || '', phone: ph, active: true, canAdd: true, createdAt: new Date().toISOString() });
+      if (ph) await setDoc(doc(fs, 'logins', ph), { email: em });
     } finally { await signOut(sa); }
+  },
+  // إصدار كلمة مرور جديدة لحساب رقم جوال: حساب دخول جديد لنفس المستخدم، ويُلغى القديم.
+  reissue: async (uid, password) => {
+    const u = USERS[uid]; const m = /^p(\d{10})(?:\.(\d+))?@/.exec((u && u.email) || '');
+    if (!m) throw { code: 'enjaz/not-phone' };
+    secondary = secondary || initializeApp(FIREBASE_CONFIG, 'secondary');
+    const sa = getAuth(secondary), k = (+(m[2] || 0)) + 1, em = phoneEmail(m[1], k);
+    const cred = await createUserWithEmailAndPassword(sa, em, password);
+    try {
+      const nu = Object.assign({}, u, { email: em, phone: m[1], reissuedAt: new Date().toISOString() }); delete nu.id;
+      await setDoc(doc(fs, 'users', cred.user.uid), nu);
+      await setDoc(doc(fs, 'logins', m[1]), { email: em });
+      await deleteDoc(doc(fs, 'users', uid));
+    } finally { await signOut(sa); }
+  },
+  changePassword: async (cur, nw) => {
+    const u = auth.currentUser;
+    await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, cur));
+    await updatePassword(u, nw);
   },
   updateUser: (uid, patch) => updateDoc(doc(fs, 'users', uid), patch),
   resetPassword: email => sendPasswordResetEmail(auth, email)
@@ -169,28 +219,30 @@ async function showLogin() {
     };
     return;
   }
-  box().innerHTML = `<h1><i>إ</i>إنجاز</h1><p>سجّل الدخول ببريدك وكلمة المرور.</p>
-    <label>البريد الإلكتروني</label><input id="gEmail" type="email" dir="ltr" autocomplete="username">
+  box().innerHTML = `<h1><i>إ</i>إنجاز</h1><p>سجّل الدخول برقم جوالك (أو بريدك) وكلمة المرور.</p>
+    <label>رقم الجوال أو البريد الإلكتروني</label><input id="gEmail" type="text" dir="ltr" autocomplete="username" placeholder="05xxxxxxxx">
     <label>كلمة المرور</label><input id="gPass" type="password" dir="ltr" autocomplete="current-password">
     <button id="gLogin">دخول</button><button class="lnk" id="gForgot">نسيت كلمة المرور؟</button><div class="msg" id="gMsg"></div>`;
   const go = async () => {
-    const email = v('gEmail').trim().toLowerCase();
-    if (!email || !v('gPass')) { msg('اكتب البريد وكلمة المرور'); return; }
-    const lk = lockLeft(email);
-    if (lk) { msg('تم إيقاف الدخول بهذا البريد مؤقتاً بعد ' + MAX_FAILS + ' محاولات خاطئة. افتح الرابط المرسل إلى بريدك لتعيين كلمة مرور جديدة، ثم أعد المحاولة بعد ' + lk + ' دقيقة.'); return; }
+    if (!v('gEmail').trim() || !v('gPass')) { msg('اكتب رقم الجوال أو البريد، وكلمة المرور'); return; }
+    const { email, phone } = await resolveLogin(v('gEmail'));
+    const lockId = phone || email;
+    const lk = lockLeft(lockId);
+    if (lk) { msg('تم إيقاف الدخول بهذا الحساب مؤقتاً بعد ' + MAX_FAILS + ' محاولات خاطئة. ' + (phone ? 'تواصل مع مدير المدرسة لإصدار كلمة مرور جديدة، أو' : 'افتح الرابط المرسل إلى بريدك لتعيين كلمة مرور جديدة، ثم') + ' أعد المحاولة بعد ' + lk + ' دقيقة.'); return; }
     msg('جارٍ الدخول…', true);
-    try { await signInWithEmailAndPassword(auth, email, v('gPass')); clearFails(email); }
+    try { await signInWithEmailAndPassword(auth, email, v('gPass')); clearFails(lockId); }
     catch (e) {
       const c = e && e.code;
       if (c === 'auth/invalid-credential' || c === 'auth/wrong-password' || c === 'auth/user-not-found' || c === 'auth/too-many-requests') {
-        const n = c === 'auth/too-many-requests' ? MAX_FAILS : addFail(email);
+        const n = c === 'auth/too-many-requests' ? MAX_FAILS : addFail(lockId);
         if (n >= MAX_FAILS) {
-          lockEmail(email);
+          lockEmail(lockId);
+          if (phone) { msg('أُدخلت كلمة مرور خاطئة ' + MAX_FAILS + ' مرات، فأُوقف الدخول مؤقتاً لمدة ' + LOCK_MIN + ' دقيقة. تواصل مع مدير المدرسة لإصدار كلمة مرور جديدة.'); return; }
           try { await sendPasswordResetEmail(auth, email); } catch (e2) {}
           msg('أُدخلت كلمة مرور خاطئة ' + MAX_FAILS + ' مرات، فأُوقف الدخول مؤقتاً لمدة ' + LOCK_MIN + ' دقيقة. أرسلنا رابط تعيين كلمة مرور جديدة إلى بريدك (افحص الرسائل غير المرغوبة أيضاً).');
           return;
         }
-        msg('البريد أو كلمة المرور غير صحيحة. المتبقي ' + (MAX_FAILS - n) + ' من ' + MAX_FAILS + ' محاولات قبل إيقاف الدخول وإرسال رابط الاستعادة.');
+        msg('بيانات الدخول أو كلمة المرور غير صحيحة. المتبقي ' + (MAX_FAILS - n) + ' من ' + MAX_FAILS + ' محاولات قبل إيقاف الدخول مؤقتاً' + (phone ? '.' : ' وإرسال رابط الاستعادة.'));
         return;
       }
       msg(errMsg(e));
@@ -198,7 +250,7 @@ async function showLogin() {
   };
   document.getElementById('gLogin').onclick = go;
   document.getElementById('gPass').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
-  document.getElementById('gForgot').onclick = async () => { if (!v('gEmail')) { msg('اكتب بريدك أولاً'); return; } try { await sendPasswordResetEmail(auth, v('gEmail').trim()); msg('أُرسل رابط تغيير كلمة المرور إلى بريدك', true); } catch (e) { msg(errMsg(e)); } };
+  document.getElementById('gForgot').onclick = async () => { if (!v('gEmail')) { msg('اكتب بريدك أولاً'); return; } if (asPhone(v('gEmail'))) { msg('الحسابات برقم الجوال: تواصل مع مدير المدرسة ليصدر لك كلمة مرور جديدة.'); return; } try { await sendPasswordResetEmail(auth, v('gEmail').trim()); msg('أُرسل رابط تغيير كلمة المرور إلى بريدك', true); } catch (e) { msg(errMsg(e)); } };
 }
 
 function blocked(text) {

@@ -9,7 +9,14 @@ service cloud.firestore {
     function profile() { return get(userDoc()).data; }
     function active() { return signedIn() && exists(userDoc()) && profile().active != false; }
     function principal() { return active() && profile().role == 'principal'; }
-    function openColl(coll) { return !(coll in ['users', 'meta', 'settings', 'oplog']); }
+    function openColl(coll) { return !(coll in ['users', 'meta', 'settings', 'oplog', 'logins']); }
+    function settingsPath() { return /databases/$(database)/documents/settings/main; }
+    // إغلاق الإضافة: للجميع (settings/main.lockAll) أو لمستخدم بعينه (users/{uid}.canAdd == false).
+    function mayWrite() {
+      return principal() || (active()
+        && !(exists(settingsPath()) && get(settingsPath()).data.get('lockAll', false) == true)
+        && profile().get('canAdd', true) != false);
+    }
     function bootstrapUid() { return get(/databases/$(database)/documents/meta/bootstrap).data.principalUid; }
 
     // إعداد أول مرة: يُنشأ مرة واحدة فقط ولا يُعدَّل بعدها.
@@ -30,6 +37,13 @@ service cloud.firestore {
       allow update, delete: if principal();
     }
 
+    // دليل الدخول برقم الجوال: يُقرأ رقم بعينه فقط (دون استعراض القائمة)، ويكتبه المدير.
+    match /logins/{phone} {
+      allow get: if true;
+      allow list: if false;
+      allow write: if principal();
+    }
+
     // سجل العمليات: يُضاف إليه فقط، ولا يُعدَّل ولا يُحذف، ويقرؤه المدير.
     match /oplog/{id} {
       allow read: if principal();
@@ -48,8 +62,8 @@ service cloud.firestore {
     // المجموعات المحمية حتى لا تتجاوز هذه القاعدة العامة قيودها أعلاه.
     match /{coll}/{id} {
       allow read: if openColl(coll) && active();
-      allow create, update: if openColl(coll) && active();
-      allow delete: if openColl(coll) && active() && profile().role != 'staff';
+      allow create, update: if openColl(coll) && mayWrite();
+      allow delete: if openColl(coll) && mayWrite() && profile().role != 'staff';
     }
   }
 }

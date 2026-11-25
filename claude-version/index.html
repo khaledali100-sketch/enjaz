@@ -218,7 +218,9 @@ let DB=null,ASSETS=null,DL=null,MODE='loading',ME=null;
 const UI={open:{},tab:{},f:{},ddate:null,dtab:'today',per:'weekly',pdate:null,scope:'all',scopeV:'',up:14,tonly:false};
 const ROLES={principal:'المدير',counselor:'الموجه الطلابي',activity:'رائد النشاط',admin:'إداري'};
 const MODS={op:'الخطة التشغيلية',pip:'خطة تحسين الأداء المدرسي',sup:'الإشراف التربوي المقيم',dis:'الانضباط المدرسي',circ:'التعاميم',aw:'وحدة الوعي الفكري',sf:'منسق الأمن والسلامة',clubs:'الأندية',ach:'إنجازات المعلمين'};
-const DEFPERMS={counselor:['dis'],activity:['op'],admin:['circ']};
+const DEFPERMS={counselor:['dis'],activity:['op'],admin:['circ'],health:[],safety:['sf'],volunteer:[]};
+const ROLE_X={health:'الموجه الصحي',safety:'منسق الأمن والسلامة',volunteer:'منسق التطوع'};
+const PERM_ROLES=()=>window.ENJAZ_WEB?['counselor','activity','admin','health','safety','volunteer']:['counselor','activity','admin'];
 const STAGES=['الابتدائية','المتوسطة','الثانوية'];
 const PERIODS=['الأولى','الثانية','الثالثة','الرابعة','الخامسة','السادسة','السابعة','الثامنة'];
 const LEVELS=[[25,'التهيئة'],[50,'الانطلاق'],[75,'التقدم'],[100,'التميز']];
@@ -272,7 +274,7 @@ function setDot(k){const d=$('#hDot');d.className='dot '+(k||'');d.title=k==='ok
 
 /* ============ سجل العمليات ============ */
 let USER=null,MYUID=null,NOLOG=false;
-const SECT={op_meta:'الخطة التشغيلية',op_domains:'الخطة التشغيلية',pip_domains:'خطة تحسين الأداء',sup_supervisors:'الإشراف – المشرفون',sup_visits:'الإشراف – الزيارات الصفية',sup_lessons:'الإشراف – الدروس التطبيقية',sup_plc:'الإشراف – المجتمع المهني',sup_work:'الإشراف – أعمال الطلاب',dis_classes:'الانضباط – الفصول',dis_days:'الانضباط – الغياب والتأخر',dis_calls:'الانضباط – التواصل',circulars:'التعاميم',awareness:'وحدة الوعي الفكري',safety:'الأمن والسلامة – برامج',safety_team:'الأمن والسلامة – الفريق',sf_checks:'الأمن والسلامة – متابعة المبنى',sf_drills:'الأمن والسلامة – الإخلاء',sf_maint:'الأمن والسلامة – الأعطال والصيانة',clubs:'الأندية',club_progs:'الأندية – خطة النادي',club_tprogs:'الأندية – برامج المعلمين',tachieve:'إنجازات المعلمين',staff:'دليل المنسوبين',settings:'الإعدادات'};
+const SECT={users:'حسابات المستخدمين',op_meta:'الخطة التشغيلية',op_domains:'الخطة التشغيلية',pip_domains:'خطة تحسين الأداء',sup_supervisors:'الإشراف – المشرفون',sup_visits:'الإشراف – الزيارات الصفية',sup_lessons:'الإشراف – الدروس التطبيقية',sup_plc:'الإشراف – المجتمع المهني',sup_work:'الإشراف – أعمال الطلاب',dis_classes:'الانضباط – الفصول',dis_days:'الانضباط – الغياب والتأخر',dis_calls:'الانضباط – التواصل',circulars:'التعاميم',awareness:'وحدة الوعي الفكري',safety:'الأمن والسلامة – برامج',safety_team:'الأمن والسلامة – الفريق',sf_checks:'الأمن والسلامة – متابعة المبنى',sf_drills:'الأمن والسلامة – الإخلاء',sf_maint:'الأمن والسلامة – الأعطال والصيانة',clubs:'الأندية',club_progs:'الأندية – خطة النادي',club_tprogs:'الأندية – برامج المعلمين',tachieve:'إنجازات المعلمين',staff:'دليل المنسوبين',settings:'الإعدادات'};
 const FLD={status:'التنفيذ',level:'مستوى التنفيذ',evidence:'الشواهد',letters:'الخطاب',owner:'المسؤول',from:'تاريخ البداية',to:'تاريخ النهاية',date:'التاريخ',name:'الاسم',title:'العنوان',number:'الرقم',required:'المطلوب',notes:'الملاحظات',phone:'الجوال',spec:'التخصص',supervisor:'المشرف',students:'الطلاب',teachers:'المعلمون',items:'الإنجازات',classes:'أعداد الغياب والتأخر',steps:'مراحل العمل اليومي',messages:'رسائل التوعية',goals:'محتوى الخطة',standards:'محتوى الخطة',vision:'الرؤية',mission:'الرسالة',values:'القيم',perms:'الصلاحيات',pins:'رموز الدخول',people:'أسماء المستخدمين',school:'اسم المدرسة',fix:'حالة المعالجة',sent:'حالة الخطاب',cstatus:'حالة الاتصال',result:'نتيجة الاتصال',count:'العدد',teachersPlan:'إعداد النادي',withLevel:'إعداد النادي'};
 function itemLabel(c,id,o){if(id==='backup')return 'استعادة نسخة احتياطية كاملة';if(!o)return id;if(c==='dis_days')return 'يوم '+dayName(id)+' '+greg(id);if(c==='circulars')return 'تعميم '+(o.number||'')+(o.title?': '+o.title:'');if(c==='dis_classes')return (o.stage||'')+' '+cname(o);if(c==='settings')return 'إعدادات البرنامج';if(c==='op_meta')return 'الإطار العام (الرؤية والرسالة)';if(c==='sf_drills')return 'إخلاء '+(o.num||'')+' – '+(o.stage||'');if(c==='sf_checks')return 'متابعة المبنى '+greg(o.date);return o.name||o.title||o.issue||o.student||o.teacher||o.host||id}
 function diffKeys(a,b){if(!a||!b)return [];const ks=new Set([...Object.keys(a),...Object.keys(b)]);ks.delete('id');const out=[];ks.forEach(k=>{if(JSON.stringify(a[k])!==JSON.stringify(b[k]))out.push(FLD[k]||k)});return [...new Set(out)]}
@@ -314,10 +316,12 @@ function vOplog(){
 /* ============ الصلاحيات ============ */
 const S=()=>D.settings.main||{};
 let ME_STAFF=null;const APP_URL='https://claude.ai/artifact/Gfi6fnDmvi2W4jx42m9ehV';
-function myName(){return ME==='staff'?((D.staff[ME_STAFF]||{}).name||''):(personName(ME)||(window.ENJAZ_AUTH&&window.ENJAZ_AUTH.profile&&window.ENJAZ_AUTH.profile.name)||'')}
-function can(m){if(!ME||ME==='staff')return false;if(ME==='principal')return true;if(m==='staff')return true;const p=(S().perms||DEFPERMS)[ME]||[];return p.includes(m)}
+function myName(){const pn=window.ENJAZ_AUTH&&window.ENJAZ_AUTH.profile&&window.ENJAZ_AUTH.profile.name;if(ME==='staff')return (D.staff[ME_STAFF]||{}).name||pn||'';if(window.ENJAZ_WEB&&ME!=='principal'&&ME_STAFF&&D.staff[ME_STAFF])return D.staff[ME_STAFF].name;return (window.ENJAZ_WEB&&ME!=='principal'&&pn)||personName(ME)||pn||''}
+function myUser(){const A=window.ENJAZ_AUTH;if(!A||!A.user)return null;return (A.listUsers()||[]).find(x=>x.id===A.user.uid)||A.profile}
+function addLocked(){if(!ME||ME==='principal')return false;if(S().lockAll)return true;const u=myUser();return !!(u&&u.canAdd===false)}
+function can(m){if(!ME||ME==='staff')return false;if(ME==='principal')return true;if(addLocked())return false;if(m==='staff')return true;const p=((S().perms||{})[ME])||DEFPERMS[ME]||[];return p.includes(m)}
 function personName(r){return (S().people||{})[r]||''}
-function roleLabel(r){if(r==='staff')return 'مسؤول برنامج';return r==='admin'?(S().adminTitle||ROLES.admin):ROLES[r]}
+function roleLabel(r){if(r==='staff')return 'معلم / مسؤول برنامج';return r==='admin'?(S().adminTitle||ROLES.admin):(ROLES[r]||ROLE_X[r]||r)}
 
 /* ============ العرض ============ */
 let rq=false,deferred=false,charts=[];
@@ -331,7 +335,7 @@ function render(){
   const r=route();$('#app').innerHTML=ROUTES[r]();
   AFTER.forEach(f=>{try{f()}catch(e){console.warn(e)}});
   $('#hSchool').textContent=S().school||'نظام متابعة الأعمال المدرسية';
-  $('#hUser').innerHTML=ME?`<span class="chip" data-act="logout" title="تسجيل الخروج">${esc(roleLabel(ME))}${myName()?' – '+esc(myName()):''} ⎋</span>`:`<span class="chip" data-act="login">تسجيل الدخول</span>`;
+  $('#hUser').innerHTML=ME?`${window.ENJAZ_AUTH?'<span class="chip" data-act="pwMine" title="تغيير كلمة المرور">🔑</span> ':''}<span class="chip" data-act="logout" title="تسجيل الخروج">${esc(roleLabel(ME))}${myName()?' – '+esc(myName()):''} ⎋</span>`:`<span class="chip" data-act="login">تسجيل الدخول</span>`;
   $('#staffList').innerHTML=vals('staff').map(s=>`<option value="${esc(s.name)}">`).join('');
   const t=new Set();vals('sup_supervisors').forEach(s=>(s.teachers||[]).forEach(x=>t.add(x)));
   $('#teacherList').innerHTML=[...t].map(x=>`<option value="${esc(x)}">`).join('');
@@ -350,7 +354,7 @@ prefs:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.
 ICONS.conv='<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/><path d="M7.5 13.5h9l-2-2M16.5 17.5h-9l2 2"/>';ICONS.oplog='<path d="M12 8v4l3 2"/><path d="M3.05 11a9 9 0 1 1 .5 4"/><path d="M3 4v5h5"/>';ICONS.achieve='<circle cx="12" cy="9" r="6"/><path d="M8.5 13.5L7 22l5-3 5 3-1.5-8.5"/><path d="M10 9l1.5 1.5L14.5 7.5"/>';ICONS.clubs='<path d="M12 2l2.5 5 5.5.8-4 3.9.9 5.5L12 14.6 7.1 17.2l.9-5.5-4-3.9 5.5-.8z"/><path d="M7 21h10"/>';ICONS.safety='<path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M12 8v8M8 12h8"/>';ICONS.dash='<rect x="3" y="3" width="8" height="10" rx="1.5"/><rect x="13" y="3" width="8" height="6" rx="1.5"/><rect x="13" y="11" width="8" height="10" rx="1.5"/><rect x="3" y="15" width="8" height="6" rx="1.5"/>';ICONS.aware='<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z"/>';ICONS.byowner='<circle cx="9" cy="8" r="3.5"/><path d="M3 20c.7-3.5 3-5.5 6-5.5"/><path d="M14 13h7M14 17h7M14 21h5"/>';ICONS.ended='<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16.5 9"/>';ICONS.mine='<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>';
 const icon=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[k]}</svg>`;
 const head=(t,extra)=>`<div class="pghead"><button class="back" data-act="go" data-r="home">→ الرئيسية</button><h1>${t}</h1><div class="sp"></div>${extra||''}</div>`;
-const roNote=m=>ME==='staff'?`<div class="ro-note">يمكنك تحديث التنفيذ وإرفاق الشواهد للبرامج المسندة إليك فقط (زر ✔ بجوار برامجك).</div>`:ME?(can(m)?'':`<div class="ro-note">أنت في وضع العرض لهذا القسم؛ صلاحية الإدخال فيه لدى المدير أو المكلّف به.</div>`):`<div class="ro-note">وضع العرض فقط – سجّل الدخول لإدخال البيانات وتحديثها.</div>`;
+const roNote=m=>addLocked()?`<div class="ro-note">🔒 الإضافة والتعديل مغلقان حالياً من قِبل مدير المدرسة، ويمكنك العرض فقط.</div>`:ME==='staff'?`<div class="ro-note">يمكنك تحديث التنفيذ وإرفاق الشواهد للبرامج المسندة إليك فقط (زر ✔ بجوار برامجك).</div>`:ME?(can(m)?'':`<div class="ro-note">أنت في وضع العرض لهذا القسم؛ صلاحية الإدخال فيه لدى المدير أو المكلّف به.</div>`):`<div class="ro-note">وضع العرض فقط – سجّل الدخول لإدخال البيانات وتحديثها.</div>`;
 function stChip(s){return s==='نفذ'?'<span class="st ok">نُفّذ</span>':s==='لم ينفذ'?'<span class="st no">لم يُنفّذ</span>':'<span class="st na">لم يحدد</span>'}
 function lvl(v){const n=lvlName(v);if(!n)return '<span class="muted">—</span>';return `<span class="lvl"><span class="bar"><i style="width:${+v}%"></i></span>${n}</span>`}
 function evCount(ev,ctx){const n=(ev||[]).length;return n?`<button class="ib" data-act="evShow" data-ctx="${esc(ctx)}">📎 ${n}</button>`:'<span class="muted">—</span>'}
@@ -449,7 +453,7 @@ function editForm(title,schema,obj,onSave){
 }
 function drawEv(){if(!MODAL||!MODAL.evs)return;Object.entries(MODAL.evs).forEach(([k,arr])=>{const b=document.getElementById('evBox_'+k);if(!b)return;b.innerHTML=arr.length?arr.map((e,i)=>`<div class="evi">${e.kind==='link'?'🔗':'📄'}<span>${esc(e.name)}</span><button class="ib" data-act="evDel" data-k="${k}" data-i="${i}">✕</button></div>`).join(''):'<span class="muted small">لا توجد مرفقات بعد</span>'})}
 function askText(title,schema,obj){return new Promise(res=>editForm(title,schema,obj,o=>res(o)))}
-function confirmBox(msg){return new Promise(res=>{openModal('تأكيد',`<p>${esc(msg)}</p>`,`<button class="btn red" data-act="mOk">نعم، احذف</button><button class="btn line" data-act="mClose">إلغاء</button>`,{ok:()=>{closeModal();res(true)}})})}
+function confirmBox(msg,lbl){return new Promise(res=>{openModal('تأكيد',`<p>${esc(msg)}</p>`,`<button class="btn red" data-act="mOk">${esc(lbl||'نعم، احذف')}</button><button class="btn line" data-act="mClose">إلغاء</button>`,{ok:()=>{closeModal();res(true)}})})}
 const fileToData=f=>new Promise((r,j)=>{const x=new FileReader();x.onload=()=>r(x.result);x.onerror=j;x.readAsDataURL(f)});
 async function addEvFile(file,k){const L=()=>MODAL&&MODAL.evs&&(MODAL.evs[k]=MODAL.evs[k]||[]);
   if(ASSETS){try{toast('جارٍ رفع '+file.name);const r=await ASSETS.upload(file);L()&&L().push({name:file.name,kind:'asset',ref:r.id,type:file.type});return}catch(e){console.warn(e)}}
@@ -510,7 +514,7 @@ function myItems(items){return itemsOf(myName(),items)}
 function getItemObj(ref){if(ref.tid){const o=D[ref.c][ref.id];return o&&(o.teachers||[]).find(t=>t.id===ref.tid)}if(ref.t){const T=TREES[ref.t],n=getNode(D[T.coll][ref.d],T,ref.p.split('.'));return (n&&n.programs||[]).find(x=>x.id===ref.x)}return D[ref.c][ref.id]}
 function updateItem(ref,patch){if(ref.tid){mutate(ref.c,ref.id,o=>{o.teachers=(o.teachers||[]).map(t=>t.id===ref.tid?Object.assign(t,patch):t)});return}if(ref.t){const T=TREES[ref.t];mutate(T.coll,ref.d,dom=>{const n=getNode(dom,T,ref.p.split('.'));n.programs=n.programs.map(p=>p.id===ref.x?Object.assign(p,patch):p)})}else mutate(ref.c,ref.id,o=>Object.assign(o,patch))}
 const refMod=ref=>ref.t?ref.t:(ref.c==='circulars'?'circ':ref.c==='awareness'?'aw':(ref.c==='safety'||ref.c.startsWith('sf_'))?'sf':(ref.c==='club_progs'||ref.c==='club_tprogs')?'clubs':'sup');
-function canExec(it){if(!ME||!it||!it.ref)return false;if(can(refMod(it.ref)))return true;const me=String(myName()||'').trim();return !!me&&String(it.owner||'').trim()===me}
+function canExec(it){if(!ME||!it||!it.ref||addLocked())return false;if(can(refMod(it.ref)))return true;const me=String(myName()||'').trim();return !!me&&String(it.owner||'').trim()===me}
 function execForm(it){const o=getItemObj(it.ref);if(!o){toast('تعذّر العثور على البرنامج');return}const lv=!it.ref.c||it.ref.c==='circulars'||!!it.ref.tid;
   editForm('تحديث التنفيذ – '+it.name,[{k:'status',label:'التنفيذ',t:'status'},...(lv?[{k:'level',label:'مستوى التنفيذ',t:'level'}]:[]),{k:'evidence',label:'الشواهد',t:'evidence'}],o,v=>{const pt={status:v.status,evidence:v.evidence};if(lv)pt.level=v.level;updateItem(it.ref,pt);toast(v.status==='نفذ'&&v.evidence.length?'تم التحديث – البرنامج مكتمل ✔':'تم التحديث')})}
 function itemFromProg(t,d,pth,p){return {src:t==='op'?'الخطة التشغيلية':'خطة تحسين الأداء',name:p.name,from:p.from,to:p.to||p.from,owner:p.owner,status:p.status,place:p.place,ev:p.evidence,ref:{t,d,p:pth,x:p.id}}}
@@ -660,7 +664,7 @@ const tPhone=(p,t)=>{const c=D.clubs[p.clubId],ct=clubTeachers(c).find(x=>x.id==
 const TT_SCHEMA=[{k:'name',label:'اسم المعلم',req:1},{k:'spec',label:'التخصص'}];
 function parseTeachers(txt,old){const prev=old||[];return String(txt||'').split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{const i=l.search(/\s*[-–—:]\s*/);const name=(i>0?l.slice(0,i):l).trim(),spec=(i>0?l.slice(i).replace(/^\s*[-–—:]\s*/,''):'').trim();const o=prev.find(x=>x.name===name);return o?Object.assign({},o,{spec:spec||o.spec}):{id:uid(),name,spec,status:'',evidence:[]}})}
 const tlistOf=a=>(a||[]).map(t=>t.name+(t.spec?' - '+t.spec:'')).join('\n');
-function canTeacher(t){if(can('clubs'))return true;const me=String(myName()||'').trim();return !!me&&String(t.name||'').trim()===me}
+function canTeacher(t){if(addLocked())return false;if(can('clubs'))return true;const me=String(myName()||'').trim();return !!me&&String(t.name||'').trim()===me}
 function tprogsView(c,ed){
   const ps=vals('club_tprogs').filter(p=>p.clubId===c.id).sort((a,b)=>String(b.from||'').localeCompare(String(a.from||'')));
   const all=ps.flatMap(p=>p.teachers||[]),dn=all.filter(t=>t.status==='نفذ').length;
@@ -924,11 +928,32 @@ function drawDisCharts(d,ds,rows,res){
 }
 
 /* ============ الإعدادات ============ */
-const U_ROLES=[['principal','المدير'],['counselor','الموجه الطلابي'],['activity','رائد النشاط'],['admin','إداري'],['staff','مسؤول برنامج / معلم']];
+const U_ROLES=[['principal','المدير'],['counselor','الموجه الطلابي'],['health','الموجه الصحي'],['activity','رائد النشاط'],['safety','منسق الأمن والسلامة'],['volunteer','منسق التطوع'],['admin','إداري'],['staff','معلم / مسؤول برنامج']];
+function lockCard(){const s=S(),lk=!!s.lockAll,us=window.ENJAZ_AUTH?(window.ENJAZ_AUTH.listUsers()||[]).filter(u=>u.role!=='principal'&&u.canAdd===false).length:0;
+  return `<div class="card" style="border-inline-start:4px solid ${lk?'var(--no,#c0392b)':'var(--ok,#1d8a55)'}"><div class="row"><h3 style="flex:1">${lk?'🔒 الإضافة مغلقة':'🔓 الإضافة مفتوحة'}</h3><button class="btn sm ${lk?'':'line'}" data-act="lockAll">${lk?'فتح الإضافة للجميع':'إغلاق الإضافة للجميع'}</button></div><p class="small muted">${lk?'لا يستطيع أي مستخدم غير المدير إضافة أو تعديل أي بيانات الآن، ويمكنهم العرض فقط.':'يضيف كل مستخدم ما يخصه حسب صلاحياته.'+(us?` (ممنوع من الإضافة فردياً: ${us})`:'')+' ويمكنك أيضاً منع مستخدم بعينه من بطاقته في «حسابات المستخدمين».'}</p></div>`}
+const SYN_RE=/^p(\d{10})(?:\.\d+)?@/;
+const loginOf=u=>{const m=SYN_RE.exec(u.email||'');return m?m[1]:(u.email||'')};
 function usersCard(){const us=(window.ENJAZ_AUTH.listUsers()||[]).sort((a,b)=>String(a.name||a.email).localeCompare(String(b.name||b.email),'ar'));
-  return `<div class="card"><div class="row"><h3 style="flex:1">حسابات المستخدمين (${us.length})</h3><button class="btn sm" data-act="uAdd">+ مستخدم</button></div><p class="small muted">كل مستخدم يدخل ببريده وكلمة مرور. الدور يحدد ما يستطيع إدخاله، و«مسؤول برنامج / معلم» يحدّث تنفيذ برامجه وشواهده فقط.</p>
-  <div class="list">${us.map(u=>`<div class="item" style="cursor:default"><div class="row"><b style="flex:1">${esc(u.name||'—')}</b>${u.active===false?'<span class="st no">موقوف</span>':'<span class="st ok">فعّال</span>'}</div><div class="m"><span dir="ltr">${esc(u.email||'')}</span><span>${esc((U_ROLES.find(r=>r[0]===u.role)||['',u.role])[1])}</span>${u.staffId&&D.staff[u.staffId]?`<span>↔ ${esc(D.staff[u.staffId].name)}</span>`:''}</div>
-  <div class="row" style="margin-top:6px"><button class="btn sm line" data-act="uEdit" data-id="${u.id}">✎ تعديل</button><button class="btn sm line" data-act="uReset" data-id="${u.id}">🔑 رابط تغيير كلمة المرور</button>${u.id!==window.ENJAZ_AUTH.user.uid?`<button class="btn sm line" data-act="uToggle" data-id="${u.id}">${u.active===false?'تفعيل':'إيقاف'}</button>`:''}</div></div>`).join('')}</div></div>`}
+  return `<div class="card"><div class="row"><h3 style="flex:1">حسابات المستخدمين (${us.length})</h3><button class="btn sm" data-act="uBulk">👥 حسابات المنسوبين</button><button class="btn sm line" data-act="uAdd">+ مستخدم</button></div><p class="small muted">يدخل المستخدم برقم جواله أو ببريده مع كلمة المرور. الدور يحدد الأقسام التي يُدخل فيها (من جدول الصلاحيات)، وكل مستخدم يحدّث برامجه وإنجازاته المسندة باسمه.</p>
+  <div class="list">${us.map(u=>{const me=u.id===window.ENJAZ_AUTH.user.uid,syn=SYN_RE.test(u.email||'');return `<div class="item" style="cursor:default"><div class="row"><b style="flex:1">${esc(u.name||'—')}</b>${u.active===false?'<span class="st no">موقوف</span>':u.canAdd===false&&u.role!=='principal'?'<span class="st warn">🔒 عرض فقط</span>':'<span class="st ok">فعّال</span>'}</div><div class="m"><span dir="ltr">${esc(loginOf(u))}</span><span>${esc((U_ROLES.find(r=>r[0]===u.role)||['',u.role])[1])}</span>${u.staffId&&D.staff[u.staffId]?`<span>↔ ${esc(D.staff[u.staffId].name)}</span>`:''}</div>
+  <div class="row" style="margin-top:6px"><button class="btn sm line" data-act="uEdit" data-id="${u.id}">✎ تعديل</button>${me?'':`<button class="btn sm line" data-act="uReset" data-id="${u.id}">🔑 ${syn?'كلمة مرور جديدة':'رابط تغيير كلمة المرور'}</button>`}${me||u.role==='principal'?'':`<button class="btn sm line" data-act="uAddLock" data-id="${u.id}">${u.canAdd===false?'🔓 السماح بالإضافة':'🔒 منع الإضافة'}</button>`}${me?'':`<button class="btn sm line" data-act="uToggle" data-id="${u.id}">${u.active===false?'تفعيل':'إيقاف'}</button>`}</div></div>`}).join('')}</div></div>`}
+/* إنشاء حسابات المنسوبين دفعة واحدة */
+function phone05(p){const d=normPhone(p);return /^9665\d{8}$/.test(d)?'0'+d.slice(3):''}
+function guessRole(t){t=normAr(t||'');if(/صحي/.test(t))return 'health';if(/موجه|مرشد/.test(t))return 'counselor';if(/نشاط/.test(t))return 'activity';if(/امن|سلامه/.test(t))return 'safety';if(/تطوع/.test(t))return 'volunteer';if(/وكيل|اداري/.test(t))return 'admin';return 'staff'}
+function bulkCands(){const us=window.ENJAZ_AUTH.listUsers()||[],key=n=>normAr(String(n||'').trim()),m=new Map();
+  const add=(name,phone,title,staffId)=>{const k=key(name);if(!k)return;const o=m.get(k)||{name:String(name).trim(),phone:'',title:'',staffId:''};if(!o.phone&&phone05(phone))o.phone=phone05(phone);if(!o.title&&title)o.title=title;if(staffId&&!o.staffId)o.staffId=staffId;m.set(k,o)};
+  vals('staff').forEach(x=>add(x.name,x.phone,x.title,x.id));vals('tachieve').forEach(x=>add(x.name,x.phone,x.spec?'معلم '+x.spec:''));vals('clubs').forEach(c=>(c.teachers||[]).forEach(t=>add(t.name,t.phone,t.spec?'معلم '+t.spec:'')));
+  const pp=S().people||{};Object.entries(pp).forEach(([r,n])=>{if(r!=='principal'&&n)add(n,'',r==='admin'?'':ROLES[r])});
+  const has=o=>us.some(u=>(o.staffId&&u.staffId===o.staffId)||key(u.name)===key(o.name)||(o.phone&&loginOf(u)===o.phone));
+  return [...m.values()].filter(o=>!has(o)&&key(o.name)!==key(pp.principal)).sort((a,b)=>a.name.localeCompare(b.name,'ar')).map((o,i)=>Object.assign(o,{i,role:guessRole(o.title)}))}
+function bulkModal(){const cs=bulkCands();UI.bulk=cs;const ro=U_ROLES.filter(r=>r[0]!=='principal');
+  openModal('حسابات المنسوبين',cs.length?`<p class="small muted">هذه أسماء المعلمين والمنسوبين المسجلين في البرنامج (دليل المنسوبين، وإنجازات المعلمين، ومعلمو الأندية) ممن ليس لهم حساب بعد. حدّد الأسماء، وتأكد من رقم الجوال والدور، ثم اضغط «إنشاء». يدخل كل واحد برقم جواله وكلمة مرور تُنشأ تلقائياً، وترسلها له بالواتساب.</p>
+  <div class="row" style="margin:6px 0"><button class="btn sm line" data-act="bulkAll">تحديد الكل</button><button class="btn sm line" data-act="bulkNone">إلغاء التحديد</button></div>
+  <div class="list">${cs.map(o=>`<div class="item" style="cursor:default"><label class="row" style="gap:8px"><input type="checkbox" data-bulk="${o.i}" ${o.phone?'checked':''}><b style="flex:1">${esc(o.name)}</b></label>${o.title?`<div class="small muted">${esc(o.title)}</div>`:''}<div class="row" style="margin-top:6px;gap:6px"><input class="inp" id="bp_${o.i}" dir="ltr" inputmode="numeric" placeholder="05xxxxxxxx" value="${esc(o.phone)}" style="flex:1;min-width:120px"><select id="br_${o.i}" style="flex:1;min-width:120px">${ro.map(r=>`<option value="${r[0]}" ${r[0]===o.role?'selected':''}>${r[1]}</option>`).join('')}</select></div></div>`).join('')}</div>`
+  :'<div class="empty">كل المنسوبين المسجلين لديهم حسابات. لإضافة شخص جديد أضفه في «دليل المنسوبين» أولاً، أو استخدم «+ مستخدم».</div>',cs.length?'<button class="btn" data-act="bulkGo">إنشاء الحسابات المحددة</button>':'')}
+function genPass(){const a=new Uint32Array(1);crypto.getRandomValues(a);return String(10000000+a[0]%90000000)}
+function credMsg(name,login,pass){const s=S();return `السلام عليكم ورحمة الله وبركاته\nأ. ${name}\nتم إنشاء حسابك في منصة «إنجاز»${s.school?' – '+s.school:''}.\nالرابط: ${S().appUrl||APP_URL}\nاسم الدخول: ${login}\nكلمة المرور: ${pass}\nبعد الدخول يمكنك تغيير كلمة المرور من زر 🔑 أعلى الشاشة.`}
+function credModal(list){UI.creds=list;openModal('بيانات الدخول',`<p class="small muted">أرسل لكل شخص بياناته بالضغط على زر الواتساب. <b>احتفظ بها الآن</b>؛ كلمات المرور لا تُحفظ في البرنامج، ويمكنك لاحقاً إصدار كلمة مرور جديدة من بطاقة المستخدم.</p><div class="list">${list.map(c=>`<div class="item" style="cursor:default"><div class="row"><b style="flex:1">${esc(c.name)}</b>${c.err?'<span class="st no">لم يُنشأ</span>':'<span class="st ok">جاهز</span>'}</div>${c.err?`<div class="small" style="color:#c0392b">${esc(c.err)}</div>`:`<div class="m"><span dir="ltr">${esc(c.login)}</span><span dir="ltr">🔑 ${esc(c.pass)}</span></div><div class="row" style="margin-top:6px"><a class="btn sm" target="_blank" rel="noopener" href="${waURL(c.login,credMsg(c.name,c.login,c.pass))}">💬 إرسال بالواتساب</a></div>`}</div>`).join('')}</div>`,'<button class="btn line" data-act="credCopy">📋 نسخ الكل</button>')}
 const U_SCHEMA=(isNew)=>[{k:'name',label:'الاسم',req:1},...(isNew?[{k:'email',label:'البريد الإلكتروني',req:1,ph:'name@example.com'},{k:'password',label:'كلمة مرور مبدئية (6 أحرف فأكثر)',req:1}]:[]),{k:'role',label:'الدور',t:'select',opts:U_ROLES,req:1},{k:'staffId',label:'ربطه بدليل المنسوبين (لمسؤولي البرامج)',t:'select',opts:()=>vals('staff').map(s=>[s.id,s.name])}];
 function vPrefs(){
   if(ME!=='principal')return head('الإعدادات')+'<div class="card empty">هذه الصفحة للمدير فقط</div>';
@@ -936,8 +961,9 @@ function vPrefs(){
   return head('الإعدادات والمستخدمون')+
   `<div class="card"><div class="row"><h3 style="flex:1">بيانات المدرسة والمستخدمين</h3><button class="btn sm" data-act="prefEdit">✎ تعديل</button></div>
   <p><b>المدرسة:</b> ${esc(s.school||'—')}</p><div class="tw"><table><thead><tr><th>الدور</th><th>الاسم</th>${window.ENJAZ_WEB?'':'<th>رمز الدخول</th>'}</tr></thead><tbody>${Object.keys(ROLES).map(r=>`<tr><td>${esc(roleLabel(r))}</td><td>${esc(pp[r]||'—')}</td>${window.ENJAZ_WEB?'':`<td>${pins[r]?'<span class="st ok">محدد</span>':'<span class="st no">غير محدد</span>'}</td>`}</tr>`).join('')}</tbody></table></div></div>
+  ${lockCard()}
   <div class="card"><h3>صلاحيات الإدخال (كلٌّ فيما يخصه)</h3><p class="small muted">المدير بصلاحيات كاملة. حدد الأقسام التي يحق لكل مستخدم الإدخال فيها، ويبقى بقية الأقسام للعرض فقط.</p>
-  <div class="tw"><table class="perm"><thead><tr><th>القسم</th>${['counselor','activity','admin'].map(r=>`<th>${esc(roleLabel(r))}</th>`).join('')}</tr></thead><tbody>${Object.entries(MODS).map(([m,l])=>`<tr><td>${l}</td>${['counselor','activity','admin'].map(r=>`<td><input type="checkbox" data-chg="perm" data-r="${r}" data-m="${m}" ${(pm[r]||[]).includes(m)?'checked':''}></td>`).join('')}</tr>`).join('')}</tbody></table></div></div>
+  <div class="tw"><table class="perm"><thead><tr><th>القسم</th>${PERM_ROLES().map(r=>`<th>${esc(roleLabel(r))}</th>`).join('')}</tr></thead><tbody>${Object.entries(MODS).map(([m,l])=>`<tr><td>${l}</td>${PERM_ROLES().map(r=>`<td><input type="checkbox" data-chg="perm" data-r="${r}" data-m="${m}" ${(pm[r]||DEFPERMS[r]||[]).includes(m)?'checked':''}></td>`).join('')}</tr>`).join('')}</tbody></table></div></div>
   <div class="card">${tableView('staff')}<p class="small muted">يُستخدم الدليل لاختيار المسؤولين وإرسال تذكيرات واتساب لهم.</p></div>
   ${window.ENJAZ_AUTH?usersCard():''}
   <div class="card"><h3>النسخ الاحتياطي</h3><div class="row"><button class="btn sm line" data-act="backup">⬇ تنزيل نسخة احتياطية</button><label class="btn sm line filebtn">⬆ استعادة من نسخة<input type="file" class="fileinp" accept=".json,application/json" data-import></label></div><p class="small muted">حالة الحفظ: ${MODE==='db'?'البيانات محفوظة سحابياً ومشتركة بين المستخدمين':'البيانات محفوظة على هذا الجهاز فقط'}.</p></div>`;
@@ -959,7 +985,7 @@ const ACH_T_SCHEMA=[{k:'name',label:'اسم المعلم',req:1,full:1},{k:'spec
 const ACH_SCOPES=[['school','المدرسة','#6b7a76'],['edu','إدارة التعليم','#14806a'],['moe','الوزارة','#b8913a'],['reg','إقليمي','#8e44ad'],['intl','دولي','#c0392b']];
 const scopeChip=v=>{const x=ACH_SCOPES.find(s=>s[1]===v);return x?`<span class="st" style="background:${x[2]}1a;color:${x[2]}">${x[1]}</span>`:'<span class="muted small">—</span>'};
 const ACH_I_SCHEMA=[{k:'title',label:'الاسم (اسم الدورة / المسابقة / المبادرة)',req:1,full:1},{k:'scope',label:'مستوى الإنجاز',t:'select',opts:ACH_SCOPES.map(x=>x[1]),req:1},{k:'date',label:'التاريخ',t:'date'},{k:'evidence',label:'الشواهد',t:'evidence'}];
-function canAch(t){if(can('ach'))return true;const me=String(myName()||'').trim();return !!me&&String(t.name||'').trim()===me}
+function canAch(t){if(addLocked())return false;if(can('ach'))return true;const me=String(myName()||'').trim();return !!me&&String(t.name||'').trim()===me}
 function vAchieve(){
   const ed=can('ach'),ts=vals('tachieve').sort((a,b)=>String(a.name).localeCompare(String(b.name),'ar'));
   const q=normAr(UI.achQ||''),list=q?ts.filter(t=>normAr(t.name+' '+(t.spec||'')).includes(q)):ts;
@@ -1114,10 +1140,26 @@ const ACT={
   achIAdd:el=>{const id=el.dataset.id,c=el.dataset.c,cl=ACH_CATS.find(x=>x[0]===c)[1];editForm('إضافة إنجاز – '+cl,ACH_I_SCHEMA,{date:todayISO()},o=>{mutate('tachieve',id,t=>{(t.items=t.items||[]).push(Object.assign(o,{id:uid(),cat:c}))});UI.achCat=id+c})},
   achIEdit:el=>{const id=el.dataset.id,iid=el.dataset.i,it=D.tachieve[id].items.find(x=>x.id===iid);editForm('تعديل الإنجاز',ACH_I_SCHEMA,it,o=>mutate('tachieve',id,t=>{t.items=t.items.map(x=>x.id===iid?Object.assign(x,o):x)}))},
   achIDel:async el=>{const id=el.dataset.id,iid=el.dataset.i;if(await confirmBox('حذف الإنجاز؟'))mutate('tachieve',id,t=>{t.items=t.items.filter(x=>x.id!==iid)})},
+  uBulk:()=>bulkModal(),
+  bulkAll:()=>document.querySelectorAll('[data-bulk]').forEach(x=>x.checked=true),
+  bulkNone:()=>document.querySelectorAll('[data-bulk]').forEach(x=>x.checked=false),
+  bulkGo:async el=>{const sel=[...document.querySelectorAll('[data-bulk]:checked')].map(x=>UI.bulk[+x.dataset.bulk]);if(!sel.length){toast('حدّد اسماً واحداً على الأقل');return}
+    const rows=sel.map(o=>({o,phone:phone05($('#bp_'+o.i).value),role:$('#br_'+o.i).value}));const bad=rows.filter(r=>!r.phone);if(bad.length){toast('رقم الجوال غير صحيح لـ: '+bad.map(r=>r.o.name).join('، '));return}
+    const dup=rows.filter((r,k)=>rows.findIndex(x=>x.phone===r.phone)!==k);if(dup.length){toast('رقم مكرر لأكثر من شخص: '+dup[0].phone);return}
+    el.disabled=true;const out=[];for(const [k,r] of rows.entries()){el.textContent='جارٍ الإنشاء '+(k+1)+' من '+rows.length+'…';let sid=r.o.staffId;
+      try{if(!sid){sid=uid();put('staff',sid,{id:sid,name:r.o.name,title:r.o.title||'',phone:r.phone})}else if(!D.staff[sid].phone)mutate('staff',sid,x=>{x.phone=r.phone});
+        const pass=genPass();await window.ENJAZ_AUTH.createUser({phone:r.phone,password:pass,name:r.o.name,role:r.role,staffId:sid});out.push({name:r.o.name,login:r.phone,pass})}
+      catch(e){out.push({name:r.o.name,err:window.ENJAZ_AUTH.errMsg(e)})}}
+    logOp('add','users','bulk',{name:'إنشاء '+out.filter(c=>!c.err).length+' حساب للمنسوبين'});credModal(out);render()},
+  credCopy:async()=>{const t=(UI.creds||[]).filter(c=>!c.err).map(c=>credMsg(c.name,c.login,c.pass)).join('\n\n──────────\n\n');try{await navigator.clipboard.writeText(t);toast('نُسخت بيانات الجميع')}catch(e){toast('تعذّر النسخ')}},
+  lockAll:()=>{const s=clone(S());s.lockAll=!s.lockAll;put('settings','main',s);toast(s.lockAll?'أُغلقت الإضافة لجميع المستخدمين':'فُتحت الإضافة');render()},
+  uAddLock:async el=>{const u=window.ENJAZ_AUTH.listUsers().find(x=>x.id===el.dataset.id);try{await window.ENJAZ_AUTH.updateUser(u.id,{canAdd:u.canAdd===false});toast(u.canAdd===false?'سُمح له بالإضافة':'مُنع من الإضافة (عرض فقط)');render()}catch(e){toast(window.ENJAZ_AUTH.errMsg(e))}},
+  pwMine:()=>openModal('تغيير كلمة المرور',`<div class="form"><div class="fld full"><label>كلمة المرور الحالية</label><input id="pwOld" type="password" dir="ltr"></div><div class="fld full"><label>كلمة المرور الجديدة (8 أحرف فأكثر)</label><input id="pwNew" type="password" dir="ltr"></div><div class="fld full"><label>تأكيد كلمة المرور الجديدة</label><input id="pwNew2" type="password" dir="ltr"></div></div>`,'<button class="btn" data-act="pwSave">حفظ</button>'),
+  pwSave:async()=>{const a=$('#pwOld').value,b=$('#pwNew').value;if(b.length<8){toast('كلمة المرور الجديدة قصيرة (8 أحرف فأكثر)');return}if(b!==$('#pwNew2').value){toast('التأكيد لا يطابق');return}try{await window.ENJAZ_AUTH.changePassword(a,b);closeModal();toast('تم تغيير كلمة المرور')}catch(e){toast(window.ENJAZ_AUTH.errMsg(e))}},
   uAdd:()=>editForm('إضافة مستخدم',U_SCHEMA(true),{role:'staff'},async o=>{if(String(o.password).length<6){toast('كلمة المرور قصيرة');return}try{await window.ENJAZ_AUTH.createUser(o);toast('أُنشئ حساب '+o.name);render()}catch(e){toast(window.ENJAZ_AUTH.errMsg(e))}}),
   uEdit:el=>{const u=window.ENJAZ_AUTH.listUsers().find(x=>x.id===el.dataset.id);editForm('تعديل المستخدم',U_SCHEMA(false),u,async o=>{try{await window.ENJAZ_AUTH.updateUser(u.id,{name:o.name,role:o.role,staffId:o.staffId||''});toast('تم الحفظ');render()}catch(e){toast(window.ENJAZ_AUTH.errMsg(e))}})},
   uToggle:async el=>{const u=window.ENJAZ_AUTH.listUsers().find(x=>x.id===el.dataset.id);try{await window.ENJAZ_AUTH.updateUser(u.id,{active:u.active===false});render()}catch(e){toast(window.ENJAZ_AUTH.errMsg(e))}},
-  uReset:async el=>{const u=window.ENJAZ_AUTH.listUsers().find(x=>x.id===el.dataset.id);try{await window.ENJAZ_AUTH.resetPassword(u.email);toast('أُرسل رابط تغيير كلمة المرور إلى '+u.email)}catch(e){toast(window.ENJAZ_AUTH.errMsg(e))}},
+  uReset:async el=>{const u=window.ENJAZ_AUTH.listUsers().find(x=>x.id===el.dataset.id);if(SYN_RE.test(u.email||'')){if(!await confirmBox('إصدار كلمة مرور جديدة لـ '+u.name+'؟ ستتوقف كلمة المرور القديمة.','نعم، أصدر كلمة جديدة'))return;try{const pass=genPass();await window.ENJAZ_AUTH.reissue(u.id,pass);credModal([{name:u.name,login:loginOf(u),pass}]);render()}catch(e){toast(window.ENJAZ_AUTH.errMsg(e))}return}try{await window.ENJAZ_AUTH.resetPassword(u.email);toast('أُرسل رابط تغيير كلمة المرور إلى '+u.email)}catch(e){toast(window.ENJAZ_AUTH.errMsg(e))}},
   logReload:()=>{UI.logRows=null;loadLog()},
   logMore:()=>loadLog(true),
   tMove:el=>moveNode(TK(el),el.dataset.d,path(el)),
@@ -1206,7 +1248,7 @@ if(j.app!=='enjaz')throw 0;let n=0;NOLOG=true;for(const c of COLLS){for(const [i
   if(k==='pdate')UI.pdate=t.value||todayISO();
   if(k==='scope'){UI.scope=t.value;UI.scopeV=''}
   if(k==='scopeV')UI.scopeV=t.value;
-  if(k==='perm'){const s=clone(S());s.perms=clone(s.perms||DEFPERMS);const a=new Set(s.perms[t.dataset.r]||[]);t.checked?a.add(t.dataset.m):a.delete(t.dataset.m);s.perms[t.dataset.r]=[...a];put('settings','main',s);return}
+  if(k==='perm'){const s=clone(S());s.perms=clone(s.perms||DEFPERMS);const a=new Set(s.perms[t.dataset.r]||DEFPERMS[t.dataset.r]||[]);t.checked?a.add(t.dataset.m):a.delete(t.dataset.m);s.perms[t.dataset.r]=[...a];put('settings','main',s);return}
   render();
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&MODAL)closeModal()});

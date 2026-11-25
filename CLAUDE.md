@@ -52,6 +52,12 @@ avoid tables/code blocks in replies to him.
   admin (perms per module in `settings.main.perms`), plus `staff` login (staff.pin) that
   may only update programs whose owner name equals theirs. Not real security in the
   artifact version — Firebase version must enforce with Auth + security rules.
+- Web accounts (2026-11-25): staff accounts log in by mobile number → synthetic email
+  `p05xxxxxxxx[.k]@<authDomain>`; `logins/{phone}` = {email} (public get, principal write);
+  «حسابات المنسوبين» bulk-creates accounts (8-digit passwords, sent via WhatsApp, never stored);
+  «كلمة مرور جديدة» = `AUTH.reissue` (new auth account, users doc moved). Extra roles: health,
+  safety, volunteer (`ROLE_X`, perms in `settings.main.perms`). Lock: `settings.main.lockAll`
+  or `users/{uid}.canAdd=false` → `addLocked()` in the UI and `mayWrite()` in the rules.
 - Levels everywhere: التهيئة 25 / الانطلاق 50 / التقدم 75 / التميز 100 (`LEVELS`).
 - Teacher achievements scopes: المدرسة، إدارة التعليم، الوزارة، إقليمي، دولي.
 
