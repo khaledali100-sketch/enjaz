@@ -32,7 +32,7 @@ avoid tables/code blocks in replies to him.
   `writeDoc` is the only place that talks to the backend → swap it (and the
   `onSnapshot` subscriptions in `boot()`) to change backend.
 - Collections (`COLLS`): settings, staff, op_meta, op_domains, pip_domains,
-  sup_supervisors, sup_visits, sup_lessons, sup_plc, sup_work, dis_classes, dis_days,
+  sup_supervisors, sup_visits, sup_lessons, sup_plc, sup_work, sup_meet, dis_classes, dis_days,
   dis_calls, circulars, awareness, safety, safety_team, sf_checks, sf_drills, sf_maint,
   clubs, club_progs, club_tprogs, tachieve. Plus `files` (small inline uploads, read on
   demand) and `oplog` (audit log, one doc per operation, loaded on demand).
@@ -58,6 +58,8 @@ avoid tables/code blocks in replies to him.
   «كلمة مرور جديدة» = `AUTH.reissue` (new auth account, users doc moved). Extra roles: health,
   safety, volunteer (`ROLE_X`, perms in `settings.main.perms`). Lock: `settings.main.lockAll`
   or `users/{uid}.canAdd=false` → `addLocked()` in the UI and `mayWrite()` in the rules.
+  Role `supervisor` (مشرف مقيم): `OWN_MODS`/`ownsRow`/`canAddRow` — adds rows in sup module,
+  rows stamped `by`=name; edits only own rows (sup_visits by `supervisor`, own sup_supervisors row).
 - Levels everywhere: التهيئة 25 / الانطلاق 50 / التقدم 75 / التميز 100 (`LEVELS`).
 - Teacher achievements scopes: المدرسة، إدارة التعليم، الوزارة، إقليمي، دولي.
 
