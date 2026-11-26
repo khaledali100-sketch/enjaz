@@ -525,7 +525,8 @@ function itemFromRow(c,r){const it=allItems().find(x=>x.ref&&x.ref.c===c&&x.ref.
 function staffOf(n){n=String(n||'').trim();if(!n)return null;return vals('staff').find(s=>String(s.name).trim()===n)||vals('sup_supervisors').find(s=>String(s.name).trim()===n&&s.phone)||null}
 function normPhone(p){p=String(p||'').replace(/\D/g,'');if(p.startsWith('00'))p=p.slice(2);if(p.startsWith('05'))p='966'+p.slice(1);else if(p.length===9&&p.startsWith('5'))p='966'+p;return p}
 function waURL(phone,msg){const p=normPhone(phone);return 'https://wa.me/'+(p||'')+'?text='+encodeURIComponent(msg)}
-function remindMsg(it){const t=todayISO(),es=endedState(it),url=S().appUrl||APP_URL;
+function appLink(){const u=String(S().appUrl||'').trim();return u&&!(window.ENJAZ_WEB&&/claude\.(ai|site)/.test(u))?u:APP_URL}
+function remindMsg(it){const t=todayISO(),es=endedState(it),url=appLink();
   if(es&&!es.ok)return `السلام عليكم ورحمة الله وبركاته\nالأستاذ/ ${it.owner||''} حفظه الله\nانتهى البرنامج: «${it.name}» بتاريخ ${greg(it.to||it.from)} (${hij(it.to||it.from)} هـ)\nوالمطلوب: ${es.reasons.join('، ')}.\nنأمل تحديد حالة التنفيذ وإرفاق الشواهد عبر منصة إنجاز:\n${url}\nشاكرين تعاونكم.\n${S().school?'إدارة '+S().school:'إدارة المدرسة'}`;const when=it.from===t?'اليوم':it.from>t?'يوم '+dayName(it.from)+' '+greg(it.from)+' ('+hij(it.from)+' هـ)':'الجاري تنفيذه حتى '+greg(it.to);
   return `السلام عليكم ورحمة الله وبركاته\nالأستاذ/ ${it.owner||''} حفظه الله\nنذكّركم بالبرنامج: «${it.name}»\nالمقرر ${when}${it.place?'\nالمكان: '+it.place:''}\nوبعد التنفيذ نأمل تحديث الحالة وإرفاق الشواهد عبر منصة إنجاز:\n${url}\nشاكرين تعاونكم.\n${S().school?'إدارة '+S().school:'إدارة المدرسة'}`}
 function ownerModal(it){
@@ -755,7 +756,7 @@ function ownerListMsg(name){const t=todayISO(),it=itemsOf(name).map(x=>Object.as
   if(cur.length)m+=`\n⏳ الجارية والقادمة:\n`+cur.map((x,i)=>`${i+1}- ${x.name} (${greg(x.from)}${x.to&&x.to!==x.from?' – '+greg(x.to):''})`).join('\n')+'\n';
   if(need.length)m+=`\n🔴 منتهية تحتاج تحديث التنفيذ وإرفاق الشواهد:\n`+need.map((x,i)=>`${i+1}- ${x.name} (انتهى ${greg(x.to||x.from)})`).join('\n')+'\n';
   if(!cur.length&&!need.length)m+='\nلا توجد برامج جارية أو متأخرة حالياً، شكراً لإنجازكم.\n';
-  return m+`\nلتحديث التنفيذ وإرفاق الشواهد عبر منصة إنجاز:\n${S().appUrl||APP_URL}\n${S().school?'إدارة '+S().school:'إدارة المدرسة'}`}
+  return m+`\nلتحديث التنفيذ وإرفاق الشواهد عبر منصة إنجاز:\n${appLink()}\n${S().school?'إدارة '+S().school:'إدارة المدرسة'}`}
 function vByOwner(){
   const names=ownerNames(),cur=UI.owner&&names.some(n=>n[0]===UI.owner)?UI.owner:'';
   const st=cur?staffOf(cur):null;
@@ -954,7 +955,7 @@ function bulkModal(){const cs=bulkCands();UI.bulk=cs;const ro=U_ROLES.filter(r=>
   <div class="list">${cs.map(o=>`<div class="item" style="cursor:default"><label class="row" style="gap:8px"><input type="checkbox" data-bulk="${o.i}" ${o.phone?'checked':''}><b style="flex:1">${esc(o.name)}</b></label>${o.title?`<div class="small muted">${esc(o.title)}</div>`:''}<div class="row" style="margin-top:6px;gap:6px"><input class="inp" id="bp_${o.i}" dir="ltr" inputmode="numeric" placeholder="05xxxxxxxx" value="${esc(o.phone)}" style="flex:1;min-width:120px"><select id="br_${o.i}" style="flex:1;min-width:120px">${ro.map(r=>`<option value="${r[0]}" ${r[0]===o.role?'selected':''}>${r[1]}</option>`).join('')}</select></div></div>`).join('')}</div>`
   :'<div class="empty">كل المنسوبين المسجلين لديهم حسابات. لإضافة شخص جديد أضفه في «دليل المنسوبين» أولاً، أو استخدم «+ مستخدم».</div>',cs.length?'<button class="btn" data-act="bulkGo">إنشاء الحسابات المحددة</button>':'')}
 function genPass(){const a=new Uint32Array(1);crypto.getRandomValues(a);return String(10000000+a[0]%90000000)}
-function credMsg(name,login,pass){const s=S();return `السلام عليكم ورحمة الله وبركاته\nأ. ${name}\nتم إنشاء حسابك في منصة «إنجاز»${s.school?' – '+s.school:''}.\nالرابط: ${S().appUrl||APP_URL}\nاسم الدخول: ${login}\nكلمة المرور: ${pass}\nبعد الدخول يمكنك تغيير كلمة المرور من زر 🔑 أعلى الشاشة.`}
+function credMsg(name,login,pass){const s=S();return `السلام عليكم ورحمة الله وبركاته\nأ. ${name}\nتم إنشاء حسابك في منصة «إنجاز»${s.school?' – '+s.school:''}.\nالرابط: ${appLink()}\nاسم الدخول: ${login}\nكلمة المرور: ${pass}\nبعد الدخول يمكنك تغيير كلمة المرور من زر 🔑 أعلى الشاشة.`}
 function credModal(list){UI.creds=list;openModal('بيانات الدخول',`<p class="small muted">أرسل لكل شخص بياناته بالضغط على زر الواتساب. <b>احتفظ بها الآن</b>؛ كلمات المرور لا تُحفظ في البرنامج، ويمكنك لاحقاً إصدار كلمة مرور جديدة من بطاقة المستخدم.</p><div class="list">${list.map(c=>`<div class="item" style="cursor:default"><div class="row"><b style="flex:1">${esc(c.name)}</b>${c.err?'<span class="st no">لم يُنشأ</span>':'<span class="st ok">جاهز</span>'}</div>${c.err?`<div class="small" style="color:#c0392b">${esc(c.err)}</div>`:`<div class="m"><span dir="ltr">${esc(c.login)}</span><span dir="ltr">🔑 ${esc(c.pass)}</span></div><div class="row" style="margin-top:6px"><a class="btn sm" target="_blank" rel="noopener" href="${waURL(c.login,credMsg(c.name,c.login,c.pass))}">💬 إرسال بالواتساب</a></div>`}</div>`).join('')}</div>`,'<button class="btn line" data-act="credCopy">📋 نسخ الكل</button>')}
 const U_SCHEMA=(isNew)=>[{k:'name',label:'الاسم',req:1},...(isNew?[{k:'email',label:'البريد الإلكتروني',req:1,ph:'name@example.com'},{k:'password',label:'كلمة مرور مبدئية (6 أحرف فأكثر)',req:1}]:[]),{k:'role',label:'الدور',t:'select',opts:U_ROLES,req:1},{k:'staffId',label:'ربطه بدليل المنسوبين (لمسؤولي البرامج)',t:'select',opts:()=>vals('staff').map(s=>[s.id,s.name])}];
 function vPrefs(){
@@ -1214,7 +1215,7 @@ const ACT={
   clsEdit:el=>editForm('تعديل فصل',CLS_SCHEMA,D.dis_classes[el.dataset.id],o=>put('dis_classes',el.dataset.id,o)),
   clsDel:async el=>{if(await confirmBox('حذف الفصل؟'))del('dis_classes',el.dataset.id)},
   clsBulk:()=>editForm('إضافة عدة فصول لصف واحد',[{k:'stage',label:'المرحلة',t:'select',opts:STAGES,req:1},{k:'grade',label:'الصف',req:1,ph:'مثال: الثاني'},{k:'n',label:'عدد الفصول',t:'number',req:1},{k:'count',label:'العدد الأساسي لكل فصل',t:'number',req:1}],{},o=>{for(let i=1;i<=Math.min(+o.n||0,20);i++)put('dis_classes',uid(),{stage:o.stage,grade:o.grade,section:String(i),count:o.count,order:i})}),
-  prefEdit:()=>{const s=S(),o={school:s.school,adminTitle:s.adminTitle,appUrl:s.appUrl||APP_URL};Object.keys(ROLES).forEach(r=>{o['n_'+r]=(s.people||{})[r]||'';o['p_'+r]=(s.pins||{})[r]||''});
+  prefEdit:()=>{const s=S(),o={school:s.school,adminTitle:s.adminTitle,appUrl:appLink()};Object.keys(ROLES).forEach(r=>{o['n_'+r]=(s.people||{})[r]||'';o['p_'+r]=(s.pins||{})[r]||''});
     editForm('بيانات المدرسة والمستخدمين',PREF_SCHEMA(),o,v=>{if(!window.ENJAZ_WEB&&(!v.p_principal||String(v.p_principal).length<4)){toast('رمز المدير يجب أن يكون 4 خانات فأكثر');return}const n=clone(S());n.school=v.school;n.adminTitle=v.adminTitle;n.appUrl=v.appUrl;n.people={};n.pins=window.ENJAZ_WEB?(S().pins||{}):{};Object.keys(ROLES).forEach(r=>{n.people[r]=v['n_'+r];if(!window.ENJAZ_WEB)n.pins[r]=v['p_'+r]});put('settings','main',n)})},
   cvToday:()=>render(),
   backup:()=>{const o={};COLLS.forEach(c=>o[c]=D[c]);saveFile('enjaz-backup-'+todayISO()+'.json',JSON.stringify({app:'enjaz',v:1,at:new Date().toISOString(),data:o},null,1),'application/json')}
